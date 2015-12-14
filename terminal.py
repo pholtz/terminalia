@@ -3,6 +3,10 @@
 
 #-------------------------------------------------------------------------------------#
 # Summary:
+# Terminal is a container class for a curses window as well as a character-based world
+# and character animation using console graphics. Terminal loads a MAP file and allows
+# the user to traverse the loaded world using WASD, showing a viewable portion of the 
+# world through the terminal graphics.
 #
 # Name: terminal.py
 # Author: Paul Holtz
@@ -74,6 +78,12 @@ class Map:
 		self.width = len(self.text[0])
 		self.height = len(self.text)
 
+		self.min_row = 0
+		self.min_col = 0
+
+		self.max_row = self.min_row + self.width
+		self.max_col = self.min_col + self.height
+
 
 	def read_map(self, mapname):
 		"""Read the MAP file and create the map matrix."""
@@ -103,7 +113,7 @@ class Terminal:
 		self.screen.keypad(1)
 		self.screen.nodelay(1)
 
-		self.nontraversable = ["@"]
+		self.nontraversable = ["@", "-", "_", "|"]
 
 
 		#Initialize Container classes for gameplay
@@ -180,6 +190,7 @@ class Terminal:
 		#CHARACTER MOVEMENT
 		if key == ord("w"):
 			if self.is_valid_move(self.player.y - 1, self.player.x):
+
 				self.player.y -= 1
 
 		if key == ord("a"):
