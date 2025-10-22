@@ -5,9 +5,9 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Direction, Layout},
-    style::{Color, Stylize},
+    style::{Color, Style, Stylize},
     symbols::border,
-    text::Text,
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Padding, Paragraph},
 };
 use specs::prelude::*;
@@ -16,7 +16,7 @@ use std::cmp::{max, min};
 
 mod map;
 
-use crate::map::{xy_idx, TileType, MAX_HEIGHT, MAX_WIDTH};
+use crate::map::{MAX_HEIGHT, MAX_WIDTH, TileType, xy_idx};
 
 #[derive(Component)]
 pub struct Position {
@@ -69,7 +69,7 @@ pub enum MainScreen {
 fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut positions = ecs.write_storage::<Position>();
     let mut players = ecs.write_storage::<Player>();
-    let mut logbook = ecs.write_resource::<Logbook>();
+    // let mut logbook = ecs.write_resource::<Logbook>();
     let map = ecs.fetch::<Vec<TileType>>();
 
     for (_player, pos) in (&mut players, &mut positions).join() {
@@ -77,9 +77,7 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
         if map[dest] != TileType::Wall {
             pos.x = min(MAX_WIDTH - 1, max(0, pos.x + delta_x));
             pos.y = min(MAX_HEIGHT - 1, max(0, pos.y + delta_y));
-            logbook
-                .entries
-                .push(format!("You moved to ({}, {})", pos.x, pos.y));
+            // logbook.entries.push(format!("You moved to ({}, {})", pos.x, pos.y));
         }
     }
 }
@@ -229,27 +227,40 @@ impl App {
      * Game objects themselves should be derived from ecs.
      */
     fn render_game(&self, frame: &mut Frame) {
+        /*
+         * Create the base map lines and spans to render the main game split
+         */
         let map = self.ecs.fetch::<Vec<map::TileType>>();
-        let mut charmap = Vec::new();
         let mut index = 0;
+        let mut lines = Vec::new();
+        let mut spans = Vec::new();
         for tile in map.iter() {
             match tile {
-                TileType::Floor => charmap.push('.'),
-                TileType::Wall => charmap.push('#'),
+                TileType::Floor => spans.push(Span::styled(".", Style::default().fg(Color::Gray))),
+                TileType::Wall => spans.push(Span::styled("#", Style::default().fg(Color::Green))),
             }
             index += 1;
             if index % MAX_WIDTH == 0 {
-                charmap.push('\n')
+                lines.push(Line::from(spans));
+                spans = Vec::new();
             }
         }
 
+        /*
+         * Overwrite base map spans with any renderable characters
+         */
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
         for (pos, render) in (&positions, &renderables).join() {
-            charmap[xy_idx(pos.x, pos.y)] = render.glyph;
+            lines[pos.y as usize].spans[pos.x as usize] = Span::styled(
+                render.glyph.to_string(),
+                Style::default().fg(Color::Yellow)
+            );
         }
-        let serialized_map: String = charmap.iter().collect();
 
+        /*
+         * Fetch and truncate the most recent logbook entries
+         */
         let logbook = self.ecs.fetch::<Logbook>();
         let recent_entries = logbook.entries.len().saturating_sub(3);
         let mut serialized_log = String::with_capacity(1024);
@@ -258,14 +269,18 @@ impl App {
             serialized_log.push('\n');
         }
 
+        // Actually render the split view via ratatui
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Percentage(95), Constraint::Percentage(5)])
             .split(frame.area());
-        frame.render_widget(Paragraph::new(Text::raw(serialized_map)), layout[0]);
+        frame.render_widget(Paragraph::new(Text::from(lines)), layout[0]);
         frame.render_widget(Paragraph::new(Text::raw(serialized_log)), layout[1]);
     }
 
+    /**
+     * Renders the fullscreen logbook, when toggled.
+     */
     fn render_log(&self, frame: &mut Frame) {
         let logbook = self.ecs.fetch::<Logbook>();
         let recent_entries = logbook.entries.len().saturating_sub(MAX_HEIGHT as usize);
@@ -291,7 +306,10 @@ fn main() -> Result<()> {
     });
     world
         .create_entity()
-        .with(Position { x: MAX_WIDTH / 2, y: MAX_HEIGHT / 2 })
+        .with(Position {
+            x: MAX_WIDTH / 2,
+            y: MAX_HEIGHT / 2,
+        })
         .with(Renderable {
             glyph: '@',
             bg: Color::Black,
