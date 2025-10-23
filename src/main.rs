@@ -15,8 +15,9 @@ use specs_derive::Component;
 use std::cmp::{max, min};
 
 mod map;
+mod rect;
 
-use crate::map::{MAX_HEIGHT, MAX_WIDTH, TileType, xy_idx};
+use crate::map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH};
 
 #[derive(Component)]
 pub struct Position {
@@ -70,11 +71,11 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut positions = ecs.write_storage::<Position>();
     let mut players = ecs.write_storage::<Player>();
     // let mut logbook = ecs.write_resource::<Logbook>();
-    let map = ecs.fetch::<Vec<TileType>>();
+    let map = ecs.fetch::<Map>();
 
     for (_player, pos) in (&mut players, &mut positions).join() {
         let dest = xy_idx(pos.x + delta_x, pos.y + delta_y);
-        if map[dest] != TileType::Wall {
+        if map.tiles[dest] != TileType::Wall {
             pos.x = min(MAX_WIDTH - 1, max(0, pos.x + delta_x));
             pos.y = min(MAX_HEIGHT - 1, max(0, pos.y + delta_y));
             // logbook.entries.push(format!("You moved to ({}, {})", pos.x, pos.y));
@@ -145,11 +146,24 @@ impl App {
             },
             Screen::Main => match key_event.code {
                 KeyCode::Esc => self.screen = Screen::Menu,
-                KeyCode::Left | KeyCode::Char('a') => try_move_player(-1, 0, &mut self.ecs),
-                KeyCode::Right | KeyCode::Char('d') => try_move_player(1, 0, &mut self.ecs),
-                KeyCode::Up | KeyCode::Char('w') => try_move_player(0, -1, &mut self.ecs),
-                KeyCode::Down | KeyCode::Char('s') => try_move_player(0, 1, &mut self.ecs),
-                KeyCode::Char('l') => match self.main_screen {
+                
+                KeyCode::Left |
+                KeyCode::Char('a') |
+                KeyCode::Char('h') => try_move_player(-1, 0, &mut self.ecs),
+
+                KeyCode::Right |
+                KeyCode::Char('d') |
+                KeyCode::Char('l') => try_move_player(1, 0, &mut self.ecs),
+
+                KeyCode::Up |
+                KeyCode::Char('w') |
+                KeyCode::Char('k') => try_move_player(0, -1, &mut self.ecs),
+
+                KeyCode::Down |
+                KeyCode::Char('s') |
+                KeyCode::Char('j') => try_move_player(0, 1, &mut self.ecs),
+
+                KeyCode::Char('q') => match self.main_screen {
                     MainScreen::Log => self.main_screen = MainScreen::Split,
                     _ => self.main_screen = MainScreen::Log,
                 },
@@ -230,11 +244,11 @@ impl App {
         /*
          * Create the base map lines and spans to render the main game split
          */
-        let map = self.ecs.fetch::<Vec<map::TileType>>();
+        let map = self.ecs.fetch::<Map>();
         let mut index = 0;
         let mut lines = Vec::new();
         let mut spans = Vec::new();
-        for tile in map.iter() {
+        for tile in map.tiles.iter() {
             match tile {
                 TileType::Floor => spans.push(Span::styled(".", Style::default().fg(Color::Gray))),
                 TileType::Wall => spans.push(Span::styled("#", Style::default().fg(Color::Green))),
@@ -300,15 +314,18 @@ fn main() -> Result<()> {
     world.register::<Position>();
     world.register::<Renderable>();
     world.register::<Player>();
-    world.insert(map::new_map());
+
+    let map = Map::new_map_dynamic_rooms_and_corridors();
+    let (player_x, player_y) = map.rooms[0].center();
+    world.insert(map);
     world.insert(Logbook {
         entries: vec!["You begin your adventure in a smallish room...".to_string()],
     });
     world
         .create_entity()
         .with(Position {
-            x: MAX_WIDTH / 2,
-            y: MAX_HEIGHT / 2,
+            x: player_x,
+            y: player_y,
         })
         .with(Renderable {
             glyph: '@',
