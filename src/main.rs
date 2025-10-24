@@ -10,14 +10,16 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, Borders, Padding, Paragraph},
 };
+use rltk::Point;
 use specs::prelude::*;
 use specs_derive::Component;
 use std::cmp::{max, min};
 
 mod map;
 mod rect;
+mod visibility_system;
 
-use crate::map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH};
+use crate::{map::{idx_xy, xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH}, visibility_system::VisibilitySystem};
 
 #[derive(Component)]
 pub struct Position {
@@ -38,6 +40,12 @@ pub struct Player {}
 #[derive(Component, Debug)]
 pub struct Logbook {
     pub entries: Vec<String>,
+}
+
+#[derive(Component)]
+pub struct Viewshed {
+    pub visible_tiles: Vec<Point>,
+    pub range: i32,
 }
 
 pub struct App {
@@ -144,34 +152,38 @@ impl App {
                 },
                 _ => {}
             },
-            Screen::Main => match key_event.code {
-                KeyCode::Esc => self.screen = Screen::Menu,
-                
-                KeyCode::Left |
-                KeyCode::Char('a') |
-                KeyCode::Char('h') => try_move_player(-1, 0, &mut self.ecs),
+            Screen::Main => match self.main_screen {
+                MainScreen::Split => match key_event.code {
+                    KeyCode::Esc => self.screen = Screen::Menu,
+                    
+                    KeyCode::Left |
+                    KeyCode::Char('a') |
+                    KeyCode::Char('h') => try_move_player(-1, 0, &mut self.ecs),
 
-                KeyCode::Right |
-                KeyCode::Char('d') |
-                KeyCode::Char('l') => try_move_player(1, 0, &mut self.ecs),
+                    KeyCode::Right |
+                    KeyCode::Char('d') |
+                    KeyCode::Char('l') => try_move_player(1, 0, &mut self.ecs),
 
-                KeyCode::Up |
-                KeyCode::Char('w') |
-                KeyCode::Char('k') => try_move_player(0, -1, &mut self.ecs),
+                    KeyCode::Up |
+                    KeyCode::Char('w') |
+                    KeyCode::Char('k') => try_move_player(0, -1, &mut self.ecs),
 
-                KeyCode::Down |
-                KeyCode::Char('s') |
-                KeyCode::Char('j') => try_move_player(0, 1, &mut self.ecs),
+                    KeyCode::Down |
+                    KeyCode::Char('s') |
+                    KeyCode::Char('j') => try_move_player(0, 1, &mut self.ecs),
 
-                KeyCode::Char('q') => match self.main_screen {
-                    MainScreen::Log => self.main_screen = MainScreen::Split,
-                    _ => self.main_screen = MainScreen::Log,
+                    KeyCode::Char('q') => self.main_screen = MainScreen::Log,
+                    KeyCode::Char(' ') => {
+                        let mut logbook = self.ecs.fetch_mut::<Logbook>();
+                        logbook.entries.push("Letsa go!".to_string());
+                    }
+                    _ => {},
                 },
-                KeyCode::Char(' ') => {
-                    let mut logbook = self.ecs.fetch_mut::<Logbook>();
-                    logbook.entries.push("Letsa go!".to_string());
+                MainScreen::Log => match key_event.code {
+                    KeyCode::Char('q') |
+                    KeyCode::Esc => self.main_screen = MainScreen::Split,
+                    _ => {},
                 }
-                _ => {}
             },
         }
     }
@@ -245,16 +257,19 @@ impl App {
          * Create the base map lines and spans to render the main game split
          */
         let map = self.ecs.fetch::<Map>();
-        let mut index = 0;
         let mut lines = Vec::new();
         let mut spans = Vec::new();
-        for tile in map.tiles.iter() {
-            match tile {
-                TileType::Floor => spans.push(Span::styled(".", Style::default().fg(Color::Gray))),
-                TileType::Wall => spans.push(Span::styled("#", Style::default().fg(Color::Green))),
+        for (index, tile) in map.tiles.iter().enumerate() {
+            if map.revealed_tiles[index] {
+                match tile {
+                    TileType::Floor => spans.push(Span::styled(".", Style::default().fg(Color::Gray))),
+                    TileType::Wall => spans.push(Span::styled("#", Style::default().fg(Color::Green))),
+                }
+            } else {
+                spans.push(Span::styled(" ", Style::default()));
             }
-            index += 1;
-            if index % MAX_WIDTH == 0 {
+
+            if (index + 1) % (MAX_WIDTH as usize) == 0 {
                 lines.push(Line::from(spans));
                 spans = Vec::new();
             }
@@ -314,6 +329,7 @@ fn main() -> Result<()> {
     world.register::<Position>();
     world.register::<Renderable>();
     world.register::<Player>();
+    world.register::<Viewshed>();
 
     let map = Map::new_map_dynamic_rooms_and_corridors();
     let (player_x, player_y) = map.rooms[0].center();
@@ -333,9 +349,15 @@ fn main() -> Result<()> {
             fg: Color::Yellow,
         })
         .with(Player {})
+        .with(Viewshed {
+            visible_tiles: Vec::new(),
+            range: 8,
+        })
         .build();
 
-    let mut dispatcher = DispatcherBuilder::new().build();
+    let mut dispatcher = DispatcherBuilder::new()
+        .with(VisibilitySystem {}, "visibility_system", &[])
+        .build();
     dispatcher.setup(&mut world);
 
     let mut terminal = ratatui::init();

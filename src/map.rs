@@ -1,6 +1,6 @@
 use std::cmp::{min, max};
 
-use rltk::RandomNumberGenerator;
+use rltk::{Algorithm2D, BaseMap, Point, RandomNumberGenerator};
 
 use crate::rect::Rect;
 
@@ -14,6 +14,7 @@ pub enum TileType {
 
 pub struct Map {
     pub tiles: Vec<TileType>,
+    pub revealed_tiles: Vec<bool>,
     pub rooms: Vec<Rect>,
     pub width: i32,
     pub height: i32,
@@ -70,6 +71,7 @@ impl Map {
     pub fn new_map_dynamic_rooms_and_corridors() -> Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
+            revealed_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
             rooms: Vec::new(),
             width: MAX_WIDTH,
             height: MAX_HEIGHT,
@@ -112,6 +114,7 @@ impl Map {
     pub fn new_map_static_rooms_and_corridors() -> Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
+            revealed_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
             rooms: Vec::new(),
             width: MAX_WIDTH,
             height: MAX_HEIGHT,
@@ -127,6 +130,7 @@ impl Map {
     pub fn new_map_random_walls() -> Map {
         let mut map = Map {
             tiles: vec![TileType::Floor; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
+            revealed_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
             rooms: Vec::new(),
             width: MAX_WIDTH,
             height: MAX_HEIGHT,
@@ -159,3 +163,14 @@ impl Map {
     }
 }
 
+impl BaseMap for Map {
+    fn is_opaque(&self, idx:usize) -> bool {
+        self.tiles[idx as usize] == TileType::Wall
+    }
+}
+
+impl Algorithm2D for Map {
+    fn dimensions(&self) -> Point {
+        Point::new(self.width, self.height)
+    }
+}
