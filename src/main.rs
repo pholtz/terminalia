@@ -3,14 +3,9 @@ use std::io;
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
-    DefaultTerminal, Frame,
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Style, Stylize},
-    symbols::border,
-    text::{Line, Span, Text},
-    widgets::{Block, Borders, Padding, Paragraph},
+    layout::{Constraint, Direction, Flex, Layout}, style::{Color, Style, Stylize}, symbols::border, text::{Line, Span, Text}, widgets::{Block, Borders, Padding, Paragraph}, DefaultTerminal, Frame
 };
-use rltk::Point;
+use rltk::{Point, RandomNumberGenerator};
 use specs::prelude::*;
 use specs_derive::Component;
 use std::cmp::{max, min};
@@ -18,8 +13,9 @@ use std::cmp::{max, min};
 mod map;
 mod rect;
 mod visibility_system;
+mod monster_system;
 
-use crate::{map::{idx_xy, xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH}, visibility_system::VisibilitySystem};
+use crate::{map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH}, monster_system::MonsterSystem, visibility_system::VisibilitySystem};
 
 #[derive(Component)]
 pub struct Position {
@@ -38,8 +34,12 @@ pub struct Renderable {
 pub struct Player {}
 
 #[derive(Component, Debug)]
+pub struct Monster {}
+
+#[derive(Component, Debug)]
 pub struct Logbook {
     pub entries: Vec<String>,
+    pub scroll_offset: u16,
 }
 
 #[derive(Component)]
@@ -78,15 +78,33 @@ pub enum MainScreen {
 fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut positions = ecs.write_storage::<Position>();
     let mut players = ecs.write_storage::<Player>();
-    // let mut logbook = ecs.write_resource::<Logbook>();
+    let mut player_position = ecs.write_resource::<Point>();
     let map = ecs.fetch::<Map>();
+    // let mut logbook = ecs.write_resource::<Logbook>();
 
     for (_player, pos) in (&mut players, &mut positions).join() {
         let dest = xy_idx(pos.x + delta_x, pos.y + delta_y);
         if map.tiles[dest] != TileType::Wall {
             pos.x = min(MAX_WIDTH - 1, max(0, pos.x + delta_x));
             pos.y = min(MAX_HEIGHT - 1, max(0, pos.y + delta_y));
+            player_position.x = pos.x;
+            player_position.y = pos.y;
             // logbook.entries.push(format!("You moved to ({}, {})", pos.x, pos.y));
+        }
+    }
+}
+
+fn try_scroll_logbook(ecs: &mut World, delta: i16) {
+    let mut logbook = ecs.write_resource::<Logbook>();
+    if delta.is_positive() {
+        match logbook.scroll_offset.checked_add(delta as u16) {
+            Some(offset) => if offset <= ((logbook.entries.len() - 1) as u16) { logbook.scroll_offset = offset },
+            None => {}
+        }
+    } else {
+        match logbook.scroll_offset.checked_sub(delta.abs() as u16) {
+            Some(offset) => logbook.scroll_offset = offset,
+            None => {}
         }
     }
 }
@@ -96,7 +114,10 @@ impl App {
         terminal.draw(|frame| self.draw(frame))?;
         while !self.exit {
             self.handle_events()?;
-            self.dispatcher.dispatch(&self.ecs);
+            match self.main_screen {
+                MainScreen::Split => self.dispatcher.dispatch(&self.ecs),
+                MainScreen::Log => {},
+            }
             self.ecs.maintain();
             terminal.draw(|frame| self.draw(frame))?;
         }
@@ -180,6 +201,14 @@ impl App {
                     _ => {},
                 },
                 MainScreen::Log => match key_event.code {
+                    KeyCode::Up |
+                    KeyCode::Char('w') |
+                    KeyCode::Char('k') => try_scroll_logbook(&mut self.ecs, -1),
+
+                    KeyCode::Down |
+                    KeyCode::Char('s') |
+                    KeyCode::Char('j') => try_scroll_logbook(&mut self.ecs, 1),
+
                     KeyCode::Char('q') |
                     KeyCode::Esc => self.main_screen = MainScreen::Split,
                     _ => {},
@@ -203,7 +232,7 @@ impl App {
             .direction(Direction::Vertical)
             .constraints(vec![
                 Constraint::Fill(1),
-                Constraint::Percentage(25),
+                Constraint::Percentage(50),
                 Constraint::Fill(1),
             ])
             .split(menu);
@@ -217,7 +246,7 @@ impl App {
             .split(vertical_layout[1]);
         let menu_layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+            .constraints(vec![Constraint::Length(3), Constraint::Length(3)])
             .split(horizontal_layout[1]);
 
         frame.render_widget(
@@ -281,10 +310,12 @@ impl App {
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
         for (pos, render) in (&positions, &renderables).join() {
-            lines[pos.y as usize].spans[pos.x as usize] = Span::styled(
-                render.glyph.to_string(),
-                Style::default().fg(Color::Yellow)
-            );
+            if map.revealed_tiles[xy_idx(pos.x, pos.y)] {
+                lines[pos.y as usize].spans[pos.x as usize] = Span::styled(
+                    render.glyph.to_string(),
+                    Style::default().fg(render.fg)
+                );
+            }
         }
 
         /*
@@ -318,7 +349,10 @@ impl App {
             serialized_log.push_str(entry);
             serialized_log.push('\n');
         }
-        frame.render_widget(Paragraph::new(Text::raw(serialized_log)), frame.area());
+        frame.render_widget(
+            Paragraph::new(Text::raw(serialized_log)).scroll((logbook.scroll_offset, 0)),
+            frame.area()
+        );
     }
 }
 
@@ -329,16 +363,16 @@ fn main() -> Result<()> {
     world.register::<Position>();
     world.register::<Renderable>();
     world.register::<Player>();
+    world.register::<Monster>();
     world.register::<Viewshed>();
 
     let map = Map::new_map_dynamic_rooms_and_corridors();
+    
+    /*
+     * Add the player character
+     */
     let (player_x, player_y) = map.rooms[0].center();
-    world.insert(map);
-    world.insert(Logbook {
-        entries: vec!["You begin your adventure in a smallish room...".to_string()],
-    });
-    world
-        .create_entity()
+    world.create_entity()
         .with(Position {
             x: player_x,
             y: player_y,
@@ -355,8 +389,38 @@ fn main() -> Result<()> {
         })
         .build();
 
+    /*
+     * Add generated monsters
+     */
+    let mut rng = RandomNumberGenerator::new();
+    for room in map.rooms.iter().skip(1) {
+        let monster_glyph = match rng.roll_dice(1, 2) {
+            1 => 'r',
+            2 => 's',
+            _ => '?',
+        };
+        world.create_entity()
+            .with(Position { x: room.center().0, y: room.center().1 })
+            .with(Renderable {
+                glyph: monster_glyph,
+                bg: Color::Black,
+                fg: Color::Red,
+            })
+            .with(Monster {})
+            .with(Viewshed { visible_tiles: Vec::new(), range: 8 })
+            .build();
+    }
+
+    world.insert(Point::new(player_x, player_y));
+    world.insert(map);
+    world.insert(Logbook {
+        entries: vec!["You begin your adventure in a smallish room...".to_string()],
+        scroll_offset: 0,
+    });
+
     let mut dispatcher = DispatcherBuilder::new()
         .with(VisibilitySystem {}, "visibility_system", &[])
+        .with(MonsterSystem {}, "monster_system", &[])
         .build();
     dispatcher.setup(&mut world);
 
