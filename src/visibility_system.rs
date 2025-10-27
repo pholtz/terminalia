@@ -17,7 +17,7 @@ impl<'a> System<'a> for VisibilitySystem {
         WriteExpect<'a, Logbook>,
     );
 
-    fn run(&mut self, (entities, mut map, player, mut viewshed, position, mut logbook): Self::SystemData) {
+    fn run(&mut self, (entities, mut map, player, mut viewshed, position, mut _logbook): Self::SystemData) {
         for (entity, viewshed, position) in (&entities, &mut viewshed, &position).join() {
             viewshed.visible_tiles.clear();
             viewshed.visible_tiles = field_of_view(

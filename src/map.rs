@@ -1,6 +1,7 @@
 use std::cmp::{min, max};
 
 use rltk::{Algorithm2D, BaseMap, Point, RandomNumberGenerator};
+use specs::Entity;
 
 use crate::rect::Rect;
 
@@ -14,7 +15,9 @@ pub enum TileType {
 
 pub struct Map {
     pub tiles: Vec<TileType>,
+    pub tile_content: Vec<Vec<Entity>>,
     pub revealed_tiles: Vec<bool>,
+    pub blocked_tiles: Vec<bool>,
     pub rooms: Vec<Rect>,
     pub width: i32,
     pub height: i32,
@@ -67,11 +70,31 @@ impl Map {
             }
         }
     }
+
+    fn is_exit_valid(&self, x:i32, y:i32) -> bool {
+        if x < 1 || x > self.width-1 || y < 1 || y > self.height-1 { return false; }
+        let idx = xy_idx(x, y);
+        !self.blocked_tiles[idx]
+    }
+
+    pub fn populate_blocked(&mut self) {
+        for (index, tile) in self.tiles.iter_mut().enumerate() {
+            self.blocked_tiles[index] = *tile == TileType::Wall;
+        }
+    }
+
+    pub fn clear_tile_content(&mut self) {
+        for content in self.tile_content.iter_mut() {
+            content.clear();
+        }
+    }
     
     pub fn new_map_dynamic_rooms_and_corridors() -> Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
+            tile_content: vec![Vec::new(); (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
             revealed_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
+            blocked_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
             rooms: Vec::new(),
             width: MAX_WIDTH,
             height: MAX_HEIGHT,
@@ -114,7 +137,9 @@ impl Map {
     pub fn new_map_static_rooms_and_corridors() -> Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
+            tile_content: vec![Vec::new(); (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
             revealed_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
+            blocked_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
             rooms: Vec::new(),
             width: MAX_WIDTH,
             height: MAX_HEIGHT,
@@ -130,7 +155,9 @@ impl Map {
     pub fn new_map_random_walls() -> Map {
         let mut map = Map {
             tiles: vec![TileType::Floor; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
+            tile_content: vec![Vec::new(); (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
             revealed_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
+            blocked_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
             rooms: Vec::new(),
             width: MAX_WIDTH,
             height: MAX_HEIGHT,
@@ -166,6 +193,28 @@ impl Map {
 impl BaseMap for Map {
     fn is_opaque(&self, idx:usize) -> bool {
         self.tiles[idx as usize] == TileType::Wall
+    }
+
+    fn get_available_exits(&self, idx: usize) -> rltk::SmallVec<[(usize, f32); 10]> {
+        let mut exits = rltk::SmallVec::new();
+        let x = idx as i32 % self.width;
+        let y = idx as i32 / self.width;
+        let w = self.width as usize;
+
+        // Cardinal directions
+        if self.is_exit_valid(x-1, y) { exits.push((idx-1, 1.0)) };
+        if self.is_exit_valid(x+1, y) { exits.push((idx+1, 1.0)) };
+        if self.is_exit_valid(x, y-1) { exits.push((idx-w, 1.0)) };
+        if self.is_exit_valid(x, y+1) { exits.push((idx+w, 1.0)) };
+
+        exits
+    }
+
+    fn get_pathing_distance(&self, idx1: usize, idx2: usize) -> f32 {
+        let w = self.width as usize;
+        let p1 = Point::new(idx1 % w, idx1 / w);
+        let p2 = Point::new(idx2 % w, idx2 / w);
+        return rltk::DistanceAlg::Pythagoras.distance2d(p1, p2);
     }
 }
 
