@@ -1,4 +1,4 @@
-use std::{io, os::macos::raw::stat};
+use std::io;
 
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
@@ -20,12 +20,11 @@ mod map_indexing_system;
 mod monster_system;
 mod rect;
 mod visibility_system;
+mod melee_combat_system;
+mod damage_system;
 
 use crate::{
-    map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, xy_idx},
-    map_indexing_system::MapIndexingSystem,
-    monster_system::MonsterSystem,
-    visibility_system::VisibilitySystem,
+    damage_system::DamageSystem, map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH}, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, visibility_system::VisibilitySystem
 };
 
 #[derive(Component, Clone, Copy)]
@@ -53,6 +52,11 @@ pub struct Logbook {
     pub scroll_offset: u16,
 }
 
+#[derive(Component, Debug)]
+pub struct Name {
+    pub name: String
+}
+
 #[derive(Component)]
 pub struct Viewshed {
     pub visible_tiles: Vec<Point>,
@@ -68,6 +72,27 @@ pub struct Stats {
     pub hp: i32,
     pub strength: i32,
     pub defense: i32,
+}
+
+#[derive(Component)]
+pub struct Attack {
+    pub target: Entity
+}
+
+#[derive(Component)]
+pub struct Damage {
+    pub amount: Vec<i32>
+}
+
+impl Damage {
+    pub fn new_damage(store: &mut WriteStorage<Damage>, victim: Entity, amount: i32) {
+        if let Some(damage) = store.get_mut(victim) {
+            damage.amount.push(amount);
+        } else {
+            store.insert(victim, Damage { amount: vec![amount] })
+                .expect("Unable to insert damage");
+        }
+    }
 }
 
 pub struct App {
@@ -98,25 +123,29 @@ pub enum MainScreen {
 }
 
 fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
+    let entities = ecs.entities();
     let mut positions = ecs.write_storage::<Position>();
     let mut players = ecs.write_storage::<Player>();
+    let mut attacks = ecs.write_storage::<Attack>();
     let stats = ecs.read_storage::<Stats>();
     let mut player_position = ecs.write_resource::<Point>();
     let map = ecs.fetch::<Map>();
     let mut _logbook = ecs.write_resource::<Logbook>();
 
-    for (pos, _player) in (&mut positions, &mut players).join() {
+    for (entity, pos, _player) in (&entities, &mut positions, &mut players).join() {
         let next_pos_x = min(MAX_WIDTH - 1, max(0, pos.x + delta_x));
         let next_pos_y = min(MAX_HEIGHT - 1, max(0, pos.y + delta_y));
         let dest = xy_idx(pos.x + delta_x, pos.y + delta_y);
 
-        for entity in map.tile_content[dest].iter() {
-            let target = stats.get(*entity);
-            match target {
-                None => {},
+        for target in map.tile_content[dest].iter() {
+            let target_stats = stats.get(*target);
+            match target_stats {
+                None => {}
                 Some(_t) => {
-                    _logbook.entries.push("Attacking!!".to_string());
-                    return; 
+                    attacks.insert(entity, Attack { target: *target })
+                        .expect("Unable to add attack");
+                    // _logbook.entries.push("Attacking!!".to_string());
+                    return;
                 }
             }
         }
@@ -152,12 +181,22 @@ fn try_scroll_logbook(ecs: &mut World, delta: i16) {
 }
 
 impl App {
+    /**
+     * The core game loop.
+     * 
+     * Some systems like the map indexing system, need to be run more than once.
+     * For example, if the player kills something, you can't move onto it immediately.
+     * We need to figure out how to handle this.
+     */
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         terminal.draw(|frame| self.draw(frame))?;
         while !self.exit {
             self.handle_events()?;
             match self.main_screen {
-                MainScreen::Split => self.dispatcher.dispatch(&self.ecs),
+                MainScreen::Split => {
+                    self.dispatcher.dispatch(&self.ecs);
+                    damage_system::cleanup_dead_entities(&mut self.ecs);
+                },
                 MainScreen::Log => {}
             }
             self.ecs.maintain();
@@ -407,9 +446,12 @@ fn main() -> Result<()> {
     world.register::<Renderable>();
     world.register::<Player>();
     world.register::<Monster>();
+    world.register::<Name>();
     world.register::<Viewshed>();
     world.register::<BlocksTile>();
     world.register::<Stats>();
+    world.register::<Attack>();
+    world.register::<Damage>();
 
     let map = Map::new_map_dynamic_rooms_and_corridors();
 
@@ -417,7 +459,7 @@ fn main() -> Result<()> {
      * Add the player character
      */
     let (player_x, player_y) = map.rooms[0].center();
-    world
+    let player = world
         .create_entity()
         .with(Position {
             x: player_x,
@@ -429,6 +471,7 @@ fn main() -> Result<()> {
             fg: Color::Yellow,
         })
         .with(Player {})
+        .with(Name { name: "player".to_string() })
         .with(Viewshed {
             visible_tiles: Vec::new(),
             range: 8,
@@ -447,10 +490,10 @@ fn main() -> Result<()> {
      */
     let mut rng = RandomNumberGenerator::new();
     for room in map.rooms.iter().skip(1) {
-        let monster_glyph = match rng.roll_dice(1, 2) {
-            1 => 'r',
-            2 => 's',
-            _ => '?',
+        let (monster_glyph, name) = match rng.roll_dice(1, 2) {
+            1 => ('r', "rat"),
+            2 => ('s', "snake"),
+            _ => ('?', "???"),
         };
         world
             .create_entity()
@@ -464,6 +507,7 @@ fn main() -> Result<()> {
                 fg: Color::Red,
             })
             .with(Monster {})
+            .with(Name { name: name.to_string() })
             .with(Viewshed {
                 visible_tiles: Vec::new(),
                 range: 8,
@@ -472,7 +516,7 @@ fn main() -> Result<()> {
             .with(Stats {
                 max_hp: 5,
                 hp: 5,
-                strength: 1,
+                strength: 10,
                 defense: 1,
             })
             .build();
@@ -484,11 +528,14 @@ fn main() -> Result<()> {
         entries: vec!["You begin your adventure in a smallish room...".to_string()],
         scroll_offset: 0,
     });
+    world.insert(player);
 
     let mut dispatcher = DispatcherBuilder::new()
         .with(VisibilitySystem {}, "visibility_system", &[])
         .with(MonsterSystem {}, "monster_system", &[])
         .with(MapIndexingSystem {}, "map_indexing_system", &[])
+        .with(MeleeCombatSystem {}, "melee_combat_system", &[])
+        .with(DamageSystem {}, "damage_system", &[])
         .build();
     dispatcher.setup(&mut world);
 
