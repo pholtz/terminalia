@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, time::Duration};
 
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
@@ -15,16 +15,21 @@ use specs::prelude::*;
 use specs_derive::Component;
 use std::cmp::{max, min};
 
+mod damage_system;
 mod map;
 mod map_indexing_system;
+mod melee_combat_system;
 mod monster_system;
 mod rect;
 mod visibility_system;
-mod melee_combat_system;
-mod damage_system;
 
 use crate::{
-    damage_system::DamageSystem, map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH}, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, visibility_system::VisibilitySystem
+    damage_system:: {DamageSystem},
+    map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH},
+    map_indexing_system::MapIndexingSystem,
+    melee_combat_system::MeleeCombatSystem,
+    monster_system::MonsterSystem,
+    visibility_system::VisibilitySystem,
 };
 
 #[derive(Component, Clone, Copy)]
@@ -54,7 +59,7 @@ pub struct Logbook {
 
 #[derive(Component, Debug)]
 pub struct Name {
-    pub name: String
+    pub name: String,
 }
 
 #[derive(Component)]
@@ -75,13 +80,18 @@ pub struct Stats {
 }
 
 #[derive(Component)]
+pub struct Inventory {
+    pub gold: i32,
+}
+
+#[derive(Component)]
 pub struct Attack {
-    pub target: Entity
+    pub target: Entity,
 }
 
 #[derive(Component)]
 pub struct Damage {
-    pub amount: Vec<i32>
+    pub amount: Vec<i32>,
 }
 
 impl Damage {
@@ -89,7 +99,13 @@ impl Damage {
         if let Some(damage) = store.get_mut(victim) {
             damage.amount.push(amount);
         } else {
-            store.insert(victim, Damage { amount: vec![amount] })
+            store
+                .insert(
+                    victim,
+                    Damage {
+                        amount: vec![amount],
+                    },
+                )
                 .expect("Unable to insert damage");
         }
     }
@@ -107,6 +123,7 @@ pub struct App {
 pub enum Screen {
     Menu,
     Main,
+    GameOver,
 }
 
 pub enum MainScreen {
@@ -120,6 +137,13 @@ pub enum MainScreen {
      * A toggleable view containing a fullscreen logbook.
      */
     Log,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum RunState {
+    AwaitingInput,
+    PlayerTurn,
+    MonsterTurn
 }
 
 fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
@@ -142,7 +166,8 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
             match target_stats {
                 None => {}
                 Some(_t) => {
-                    attacks.insert(entity, Attack { target: *target })
+                    attacks
+                        .insert(entity, Attack { target: *target })
                         .expect("Unable to add attack");
                     // _logbook.entries.push("Attacking!!".to_string());
                     return;
@@ -184,23 +209,47 @@ impl App {
     /**
      * The core game loop.
      * 
-     * Some systems like the map indexing system, need to be run more than once.
-     * For example, if the player kills something, you can't move onto it immediately.
-     * We need to figure out how to handle this.
+     * Event though this is a turn based game, we render and run background systems continuously.
+     * This allows us to perform animations, and ensures that systems have a chance to settle
+     * after a key event and resulting state changes. For example, if the combat system removes
+     * a monster after the map indexing system runs, we ensure that indexing will be rerun each
+     * tick and thus will eventually settle, likely far before any further input occurs.
+     * 
+     * This is somewhat inefficient since lots of things rerun that probably don't need to,
+     * but it also really simplifies game logic and lets us think about systems as continuous.
      */
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         terminal.draw(|frame| self.draw(frame))?;
         while !self.exit {
-            self.handle_events()?;
-            match self.main_screen {
-                MainScreen::Split => {
-                    self.dispatcher.dispatch(&self.ecs);
-                    damage_system::cleanup_dead_entities(&mut self.ecs);
-                },
-                MainScreen::Log => {}
+            let has_event = self.handle_events()?;
+            match self.screen {
+                Screen::Menu | Screen::GameOver => {}
+                Screen::Main => {
+                    match self.main_screen {
+                        MainScreen::Log => {},
+                        MainScreen::Split => {
+                            {
+                                let mut runstate = (&mut self.ecs).write_resource::<RunState>();
+                                match *runstate {
+                                    RunState::AwaitingInput => {
+                                        if has_event { *runstate = RunState::PlayerTurn }
+                                    },
+                                    RunState::PlayerTurn => *runstate = RunState::MonsterTurn,
+                                    RunState::MonsterTurn => *runstate = RunState::AwaitingInput,
+                                }
+                            }
+                            self.dispatcher.dispatch(&self.ecs);
+                            if damage_system::is_game_over(&mut self.ecs) {
+                                self.screen = Screen::GameOver;
+                            }
+                            damage_system::cleanup_dead_entities(&mut self.ecs);
+                        }
+                    }
+                }
             }
             self.ecs.maintain();
             terminal.draw(|frame| self.draw(frame))?;
+            std::thread::sleep(Duration::from_millis(16));
         }
         Ok(())
     }
@@ -212,6 +261,7 @@ impl App {
                 MainScreen::Split => self.render_game(frame),
                 MainScreen::Log => self.render_log(frame),
             },
+            Screen::GameOver => self.render_game_over(frame),
         }
     }
 
@@ -219,14 +269,17 @@ impl App {
         self.exit = true;
     }
 
-    fn handle_events(&mut self) -> io::Result<()> {
-        match event::read()? {
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                self.handle_key_event(key_event)
+    fn handle_events(&mut self) -> io::Result<bool> {
+        if event::poll(Duration::from_millis(0))? {
+            match event::read()? {
+                Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
+                    self.handle_key_event(key_event)
+                }
+                _ => {}
             }
-            _ => {}
+            return Ok(true)
         }
-        Ok(())
+        Ok(false)
     }
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
@@ -294,6 +347,10 @@ impl App {
                     _ => {}
                 },
             },
+            Screen::GameOver => match key_event.code {
+                KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Esc => self.screen = Screen::Menu,
+                _ => {},
+            }
         }
     }
 
@@ -401,6 +458,20 @@ impl App {
         }
 
         /*
+         * Format the status bar with health, gold, etc.
+         */
+        let player = self.ecs.fetch::<Entity>();
+        let stats = self.ecs.read_storage::<Stats>();
+        let inventory = self.ecs.read_storage::<Inventory>();
+        let status_line = match (stats.get(*player), inventory.get(*player)) {
+            (Some(stats), Some(inventory)) => format!(
+                "HP: {} / {}  Gold: {}",
+                stats.hp, stats.max_hp, inventory.gold
+            ),
+            _ => String::new(),
+        };
+
+        /*
          * Fetch and truncate the most recent logbook entries
          */
         let logbook = self.ecs.fetch::<Logbook>();
@@ -414,10 +485,31 @@ impl App {
         // Actually render the split view via ratatui
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Percentage(95), Constraint::Percentage(5)])
+            .constraints(vec![
+                Constraint::Length(MAX_HEIGHT as u16),
+                Constraint::Length(1),
+                Constraint::Fill(1),
+            ])
             .split(frame.area());
         frame.render_widget(Paragraph::new(Text::from(lines)), layout[0]);
-        frame.render_widget(Paragraph::new(Text::raw(serialized_log)), layout[1]);
+        frame.render_widget(Paragraph::new(Text::from(status_line)), layout[1]);
+        frame.render_widget(Paragraph::new(Text::raw(serialized_log)), layout[2]);
+    }
+
+    fn render_game_over(&self, frame: &mut Frame) {
+        let layout = Layout::default().direction(Direction::Vertical).constraints([
+            Constraint::Percentage(40),
+            Constraint::Length(1),
+            Constraint::Percentage(40),
+        ]).split(frame.area());
+
+        frame.render_widget(
+            Paragraph::new(Text::from(Span::styled(
+                "Y O U  D I E D",
+                Style::default().fg(Color::Red),
+            ))).centered(),
+            layout[1],
+        );
     }
 
     /**
@@ -450,6 +542,7 @@ fn main() -> Result<()> {
     world.register::<Viewshed>();
     world.register::<BlocksTile>();
     world.register::<Stats>();
+    world.register::<Inventory>();
     world.register::<Attack>();
     world.register::<Damage>();
 
@@ -471,7 +564,9 @@ fn main() -> Result<()> {
             fg: Color::Yellow,
         })
         .with(Player {})
-        .with(Name { name: "player".to_string() })
+        .with(Name {
+            name: "player".to_string(),
+        })
         .with(Viewshed {
             visible_tiles: Vec::new(),
             range: 8,
@@ -483,6 +578,7 @@ fn main() -> Result<()> {
             strength: 5,
             defense: 2,
         })
+        .with(Inventory { gold: 0 })
         .build();
 
     /*
@@ -507,7 +603,9 @@ fn main() -> Result<()> {
                 fg: Color::Red,
             })
             .with(Monster {})
-            .with(Name { name: name.to_string() })
+            .with(Name {
+                name: name.to_string(),
+            })
             .with(Viewshed {
                 visible_tiles: Vec::new(),
                 range: 8,
@@ -522,13 +620,14 @@ fn main() -> Result<()> {
             .build();
     }
 
-    world.insert(Point::new(player_x, player_y));
+    world.insert(RunState::AwaitingInput);
     world.insert(map);
+    world.insert(Point::new(player_x, player_y));
+    world.insert(player);
     world.insert(Logbook {
         entries: vec!["You begin your adventure in a smallish room...".to_string()],
         scroll_offset: 0,
     });
-    world.insert(player);
 
     let mut dispatcher = DispatcherBuilder::new()
         .with(VisibilitySystem {}, "visibility_system", &[])

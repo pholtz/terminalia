@@ -1,7 +1,7 @@
 use rltk::{Point};
 use specs::prelude::*;
 
-use crate::{map::{xy_idx, Map, MAX_WIDTH}, Attack, Logbook, Monster, Position, Viewshed};
+use crate::{map::{xy_idx, Map, MAX_WIDTH}, Attack, Logbook, Monster, Position, RunState, Viewshed};
 
 pub struct MonsterSystem {
 
@@ -18,6 +18,7 @@ impl<'a> System<'a> for MonsterSystem {
         ReadExpect<'a, Entity>,
         WriteExpect<'a, Logbook>,
         WriteExpect<'a, Map>,
+        ReadExpect<'a, RunState>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
@@ -30,8 +31,11 @@ impl<'a> System<'a> for MonsterSystem {
             player_position,
             player_entity,
             mut _logbook,
-            mut map
+            mut map,
+            runstate,
         ) = data;
+
+        // if *runstate != RunState::MonsterTurn { return; }
 
         for (entity, viewshed, position, _monster) in (&entities, &viewshed, &mut position, &monster).join() {
             if viewshed.visible_tiles.contains(&*player_position) {
