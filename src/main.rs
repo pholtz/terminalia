@@ -1,7 +1,8 @@
-use std::{io, time::Duration};
+use std::{fs::File, io, time::Duration};
 
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use log::LevelFilter;
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Direction, Layout},
@@ -11,6 +12,7 @@ use ratatui::{
     widgets::{Block, Borders, Padding, Paragraph},
 };
 use rltk::{Point, RandomNumberGenerator};
+use simplelog::{CombinedLogger, Config, WriteLogger};
 use specs::prelude::*;
 use specs_derive::Component;
 use std::cmp::{max, min};
@@ -24,8 +26,8 @@ mod rect;
 mod visibility_system;
 
 use crate::{
-    damage_system:: {DamageSystem},
-    map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH},
+    damage_system::DamageSystem,
+    map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, xy_idx},
     map_indexing_system::MapIndexingSystem,
     melee_combat_system::MeleeCombatSystem,
     monster_system::MonsterSystem,
@@ -143,7 +145,7 @@ pub enum MainScreen {
 pub enum RunState {
     AwaitingInput,
     PlayerTurn,
-    MonsterTurn
+    MonsterTurn,
 }
 
 fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
@@ -208,13 +210,13 @@ fn try_scroll_logbook(ecs: &mut World, delta: i16) {
 impl App {
     /**
      * The core game loop.
-     * 
+     *
      * Event though this is a turn based game, we render and run background systems continuously.
      * This allows us to perform animations, and ensures that systems have a chance to settle
      * after a key event and resulting state changes. For example, if the combat system removes
      * a monster after the map indexing system runs, we ensure that indexing will be rerun each
      * tick and thus will eventually settle, likely far before any further input occurs.
-     * 
+     *
      * This is somewhat inefficient since lots of things rerun that probably don't need to,
      * but it also really simplifies game logic and lets us think about systems as continuous.
      */
@@ -224,28 +226,28 @@ impl App {
             let has_event = self.handle_events()?;
             match self.screen {
                 Screen::Menu | Screen::GameOver => {}
-                Screen::Main => {
-                    match self.main_screen {
-                        MainScreen::Log => {},
-                        MainScreen::Split => {
-                            {
-                                let mut runstate = (&mut self.ecs).write_resource::<RunState>();
-                                match *runstate {
-                                    RunState::AwaitingInput => {
-                                        if has_event { *runstate = RunState::PlayerTurn }
-                                    },
-                                    RunState::PlayerTurn => *runstate = RunState::MonsterTurn,
-                                    RunState::MonsterTurn => *runstate = RunState::AwaitingInput,
+                Screen::Main => match self.main_screen {
+                    MainScreen::Log => {}
+                    MainScreen::Split => {
+                        {
+                            let mut runstate = (&mut self.ecs).write_resource::<RunState>();
+                            match *runstate {
+                                RunState::AwaitingInput => {
+                                    if has_event {
+                                        *runstate = RunState::PlayerTurn
+                                    }
                                 }
+                                RunState::PlayerTurn => *runstate = RunState::MonsterTurn,
+                                RunState::MonsterTurn => *runstate = RunState::AwaitingInput,
                             }
-                            self.dispatcher.dispatch(&self.ecs);
-                            if damage_system::is_game_over(&mut self.ecs) {
-                                self.screen = Screen::GameOver;
-                            }
-                            damage_system::cleanup_dead_entities(&mut self.ecs);
                         }
+                        self.dispatcher.dispatch(&self.ecs);
+                        if damage_system::is_game_over(&mut self.ecs) {
+                            self.screen = Screen::GameOver;
+                        }
+                        damage_system::cleanup_dead_entities(&mut self.ecs);
                     }
-                }
+                },
             }
             self.ecs.maintain();
             terminal.draw(|frame| self.draw(frame))?;
@@ -277,7 +279,7 @@ impl App {
                 }
                 _ => {}
             }
-            return Ok(true)
+            return Ok(true);
         }
         Ok(false)
     }
@@ -349,8 +351,8 @@ impl App {
             },
             Screen::GameOver => match key_event.code {
                 KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Esc => self.screen = Screen::Menu,
-                _ => {},
-            }
+                _ => {}
+            },
         }
     }
 
@@ -497,17 +499,21 @@ impl App {
     }
 
     fn render_game_over(&self, frame: &mut Frame) {
-        let layout = Layout::default().direction(Direction::Vertical).constraints([
-            Constraint::Percentage(40),
-            Constraint::Length(1),
-            Constraint::Percentage(40),
-        ]).split(frame.area());
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(40),
+                Constraint::Length(1),
+                Constraint::Percentage(40),
+            ])
+            .split(frame.area());
 
         frame.render_widget(
             Paragraph::new(Text::from(Span::styled(
                 "Y O U  D I E D",
                 Style::default().fg(Color::Red),
-            ))).centered(),
+            )))
+            .centered(),
             layout[1],
         );
     }
@@ -532,6 +538,13 @@ impl App {
 
 fn main() -> Result<()> {
     color_eyre::install().expect("ahhhh");
+
+    CombinedLogger::init(vec![WriteLogger::new(
+        LevelFilter::Info,
+        Config::default(),
+        File::create("spear.log").unwrap(),
+    )])
+    .unwrap();
 
     let mut world = World::new();
     world.register::<Position>();
@@ -631,10 +644,10 @@ fn main() -> Result<()> {
 
     let mut dispatcher = DispatcherBuilder::new()
         .with(VisibilitySystem {}, "visibility_system", &[])
-        .with(MonsterSystem {}, "monster_system", &[])
-        .with(MapIndexingSystem {}, "map_indexing_system", &[])
-        .with(MeleeCombatSystem {}, "melee_combat_system", &[])
-        .with(DamageSystem {}, "damage_system", &[])
+        .with(MonsterSystem {}, "monster_system", &["visibility_system"])
+        .with(MapIndexingSystem {}, "map_indexing_system", &["monster_system"])
+        .with(MeleeCombatSystem {}, "melee_combat_system", &["map_indexing_system"])
+        .with(DamageSystem {}, "damage_system", &["melee_combat_system"])
         .build();
     dispatcher.setup(&mut world);
 

@@ -1,5 +1,6 @@
 use std::cmp::{min, max};
 
+use log::info;
 use rltk::{Algorithm2D, BaseMap, Point, RandomNumberGenerator};
 use specs::Entity;
 

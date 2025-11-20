@@ -1,3 +1,4 @@
+use log::info;
 use rltk::{Point};
 use specs::prelude::*;
 
@@ -35,11 +36,18 @@ impl<'a> System<'a> for MonsterSystem {
             runstate,
         ) = data;
 
-        // if *runstate != RunState::MonsterTurn { return; }
+        match *runstate {
+            RunState::AwaitingInput | RunState::PlayerTurn => { return },
+            RunState::MonsterTurn => {},
+        }
+        /*
+         * Not sure why we still need this,
+         * but it seems like whenever we remove it monsters stop being able to move.
+         */
+        map.populate_blocked();
 
         for (entity, viewshed, position, _monster) in (&entities, &viewshed, &mut position, &monster).join() {
             if viewshed.visible_tiles.contains(&*player_position) {
-                // logbook.entries.push(format!("Monster at ({}, {}) sees you!", position.x, position.y));
                 let path = rltk::a_star_search(
                     xy_idx(position.x, position.y),
                     xy_idx(player_position.x, player_position.y),
