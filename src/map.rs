@@ -1,6 +1,5 @@
 use std::cmp::{min, max};
 
-use log::info;
 use rltk::{Algorithm2D, BaseMap, Point, RandomNumberGenerator};
 use specs::Entity;
 
@@ -11,7 +10,7 @@ pub const MAX_HEIGHT: i32 = 50;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum TileType {
-    Wall, Floor
+    Wall, Floor, DownStairs
 }
 
 pub struct Map {
@@ -90,7 +89,7 @@ impl Map {
         }
     }
     
-    pub fn new_map_dynamic_rooms_and_corridors() -> Map {
+    pub fn new_map_dynamic_rooms_and_corridors(rng: &mut RandomNumberGenerator) -> Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
             tile_content: vec![Vec::new(); (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
@@ -103,8 +102,6 @@ impl Map {
         const MAX_ROOMS : i32 = 30;
         const MIN_SIZE : i32 = 6;
         const MAX_SIZE : i32 = 10;
-    
-        let mut rng = RandomNumberGenerator::new();
     
         for _ in 0..MAX_ROOMS {
             let w = rng.range(MIN_SIZE, MAX_SIZE);
@@ -132,6 +129,10 @@ impl Map {
                 map.rooms.push(new_room);            
             }
         }
+
+        let (stair_x, stair_y) = map.rooms[map.rooms.len() - 1].center();
+        map.tiles[xy_idx(stair_x, stair_y)] = TileType::DownStairs;
+        
         return map;
     }
     

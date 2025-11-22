@@ -3,6 +3,7 @@ use std::{fs::File, io, time::Duration};
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use log::LevelFilter;
+use rand::Rng;
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Direction, Layout},
@@ -24,14 +25,10 @@ mod melee_combat_system;
 mod monster_system;
 mod rect;
 mod visibility_system;
+mod floor;
 
 use crate::{
-    damage_system::DamageSystem,
-    map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, xy_idx},
-    map_indexing_system::MapIndexingSystem,
-    melee_combat_system::MeleeCombatSystem,
-    monster_system::MonsterSystem,
-    visibility_system::VisibilitySystem,
+    damage_system::DamageSystem, floor::generate_floor, map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH}, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, visibility_system::VisibilitySystem
 };
 
 #[derive(Component, Clone, Copy)]
@@ -171,7 +168,6 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
                     attacks
                         .insert(entity, Attack { target: *target })
                         .expect("Unable to add attack");
-                    // _logbook.entries.push("Attacking!!".to_string());
                     return;
                 }
             }
@@ -183,7 +179,6 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
             pos.y = next_pos_y;
             player_position.x = next_pos_x;
             player_position.y = next_pos_y;
-            // logbook.entries.push(format!("You moved to ({}, {})", pos.x, pos.y));
         }
     }
 }
@@ -211,7 +206,7 @@ impl App {
     /**
      * The core game loop.
      *
-     * Event though this is a turn based game, we render and run background systems continuously.
+     * Even though this is a turn based game, we render and run background systems continuously.
      * This allows us to perform animations, and ensures that systems have a chance to settle
      * after a key event and resulting state changes. For example, if the combat system removes
      * a monster after the map indexing system runs, we ensure that indexing will be rerun each
@@ -303,7 +298,11 @@ impl App {
                     }
                 }
                 KeyCode::Enter => match self.menu_index {
-                    0 => self.screen = Screen::Main,
+                    0 => {
+                        self.ecs = reinitialize_world();
+                        generate_floor(0, 0, &mut self.ecs);
+                        self.screen = Screen::Main;
+                    },
                     1 => self.exit(),
                     _ => {}
                 },
@@ -350,7 +349,12 @@ impl App {
                 },
             },
             Screen::GameOver => match key_event.code {
-                KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Esc => self.screen = Screen::Menu,
+                KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Esc => {
+                    self.ecs = reinitialize_world();
+                    self.dispatcher = reinitialize_systems(&mut self.ecs);
+                    generate_floor(0, 0, &mut self.ecs);
+                    self.screen = Screen::Menu;
+                },
                 _ => {}
             },
         }
@@ -435,6 +439,9 @@ impl App {
                     }
                     TileType::Wall => {
                         spans.push(Span::styled("#", Style::default().fg(Color::Green)))
+                    },
+                    TileType::DownStairs => {
+                        spans.push(Span::styled("目", Style::default().fg(Color::Yellow)))
                     }
                 }
             } else {
@@ -477,7 +484,7 @@ impl App {
          * Fetch and truncate the most recent logbook entries
          */
         let logbook = self.ecs.fetch::<Logbook>();
-        let recent_entries = logbook.entries.len().saturating_sub(3);
+        let recent_entries = logbook.entries.len().saturating_sub(2);
         let mut serialized_log = String::with_capacity(1024);
         for entry in &logbook.entries[recent_entries..] {
             serialized_log.push_str(entry);
@@ -536,16 +543,7 @@ impl App {
     }
 }
 
-fn main() -> Result<()> {
-    color_eyre::install().expect("ahhhh");
-
-    CombinedLogger::init(vec![WriteLogger::new(
-        LevelFilter::Info,
-        Config::default(),
-        File::create("spear.log").unwrap(),
-    )])
-    .unwrap();
-
+fn reinitialize_world() -> World {
     let mut world = World::new();
     world.register::<Position>();
     world.register::<Renderable>();
@@ -558,90 +556,10 @@ fn main() -> Result<()> {
     world.register::<Inventory>();
     world.register::<Attack>();
     world.register::<Damage>();
+    return world;
+}
 
-    let map = Map::new_map_dynamic_rooms_and_corridors();
-
-    /*
-     * Add the player character
-     */
-    let (player_x, player_y) = map.rooms[0].center();
-    let player = world
-        .create_entity()
-        .with(Position {
-            x: player_x,
-            y: player_y,
-        })
-        .with(Renderable {
-            glyph: '@',
-            bg: Color::Black,
-            fg: Color::Yellow,
-        })
-        .with(Player {})
-        .with(Name {
-            name: "player".to_string(),
-        })
-        .with(Viewshed {
-            visible_tiles: Vec::new(),
-            range: 8,
-        })
-        .with(BlocksTile {})
-        .with(Stats {
-            max_hp: 20,
-            hp: 20,
-            strength: 5,
-            defense: 2,
-        })
-        .with(Inventory { gold: 0 })
-        .build();
-
-    /*
-     * Add generated monsters
-     */
-    let mut rng = RandomNumberGenerator::new();
-    for room in map.rooms.iter().skip(1) {
-        let (monster_glyph, name) = match rng.roll_dice(1, 2) {
-            1 => ('r', "rat"),
-            2 => ('s', "snake"),
-            _ => ('?', "???"),
-        };
-        world
-            .create_entity()
-            .with(Position {
-                x: room.center().0,
-                y: room.center().1,
-            })
-            .with(Renderable {
-                glyph: monster_glyph,
-                bg: Color::Black,
-                fg: Color::Red,
-            })
-            .with(Monster {})
-            .with(Name {
-                name: name.to_string(),
-            })
-            .with(Viewshed {
-                visible_tiles: Vec::new(),
-                range: 8,
-            })
-            .with(BlocksTile {})
-            .with(Stats {
-                max_hp: 5,
-                hp: 5,
-                strength: 10,
-                defense: 1,
-            })
-            .build();
-    }
-
-    world.insert(RunState::AwaitingInput);
-    world.insert(map);
-    world.insert(Point::new(player_x, player_y));
-    world.insert(player);
-    world.insert(Logbook {
-        entries: vec!["You begin your adventure in a smallish room...".to_string()],
-        scroll_offset: 0,
-    });
-
+fn reinitialize_systems(world: &mut World) -> Dispatcher<'static, 'static> {
     let mut dispatcher = DispatcherBuilder::new()
         .with(VisibilitySystem {}, "visibility_system", &[])
         .with(MonsterSystem {}, "monster_system", &["visibility_system"])
@@ -649,7 +567,23 @@ fn main() -> Result<()> {
         .with(MeleeCombatSystem {}, "melee_combat_system", &["map_indexing_system"])
         .with(DamageSystem {}, "damage_system", &["melee_combat_system"])
         .build();
-    dispatcher.setup(&mut world);
+    dispatcher.setup(world);
+    return dispatcher;
+}
+
+fn main() -> Result<()> {
+    color_eyre::install().expect("ahhhh");
+
+    CombinedLogger::init(vec![WriteLogger::new(
+        LevelFilter::Info,
+        Config::default(),
+        File::create("spear.log").unwrap(),
+    )])
+    .unwrap();
+
+    let mut world = reinitialize_world();
+    let dispatcher = reinitialize_systems(&mut world);
+    generate_floor(rand::rng().random(), 0, &mut world);
 
     let mut terminal = ratatui::init();
     let app_result = App {
