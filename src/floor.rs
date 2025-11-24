@@ -1,5 +1,7 @@
-use crate::{map::Map, BlocksTile, Inventory, Logbook, Monster, Name, Player, Position, Renderable, RunState, Stats, Viewshed};
-use ratatui::style::Color;
+use crate::{
+    map::{Map, MAX_ITEMS, MAX_MONSTERS}, spawn::{spawn_monster_rat, spawn_monster_snake, spawn_player, spawn_potion_health}, BlocksTile, Inventory, Logbook, Monster, Name, Player, Position, Renderable, RunState, Stats, Viewshed
+};
+use log::{info, warn};
 use rltk::{Point, RandomNumberGenerator};
 use specs::prelude::*;
 
@@ -7,75 +9,37 @@ use specs::prelude::*;
  * Creates a very simple map and populates it with some very simple monsters.
  */
 pub fn generate_floor(seed: u64, floor_index: u8, world: &mut World) {
-    let mut rng = RandomNumberGenerator::seeded(seed);
+    let mut rng = RandomNumberGenerator::seeded(seed + (floor_index as u64));
     let map = Map::new_map_dynamic_rooms_and_corridors(&mut rng);
 
     /*
      * Add the player character
      */
     let (player_x, player_y) = map.rooms[0].center();
-    let player = world
-        .create_entity()
-        .with(Position {
-            x: player_x,
-            y: player_y,
-        })
-        .with(Renderable {
-            glyph: '@',
-            bg: Color::Black,
-            fg: Color::Yellow,
-        })
-        .with(Player {})
-        .with(Name {
-            name: "player".to_string(),
-        })
-        .with(Viewshed {
-            visible_tiles: Vec::new(),
-            range: 8,
-        })
-        .with(BlocksTile {})
-        .with(Stats {
-            max_hp: 50,
-            hp: 50,
-            strength: 5,
-            defense: 1,
-        })
-        .with(Inventory { gold: 0 })
-        .build();
+    let player = spawn_player(world, player_x, player_y);
 
-    for room in map.rooms.iter().skip(1) {
-        let (monster_glyph, name) = match rng.roll_dice(1, 2) {
-            1 => ('r', "rat"),
-            2 => ('s', "snake"),
-            _ => ('?', "???"),
+    for (index, room) in map.rooms.iter().skip(1).enumerate() {
+        if index > (MAX_MONSTERS as usize) { break; }
+        match rng.roll_dice(1, 2) {
+            1 => spawn_monster_rat(world, Position { x: room.center().0, y: room.center().1 }),
+            2 => spawn_monster_snake(world, Position { x: room.center().0, y: room.center().1 }),
+            _ => warn!("generate_floor received unexpected random monster spawn diceroll, skipping..."),
         };
-        world
-            .create_entity()
-            .with(Position {
-                x: room.center().0,
-                y: room.center().1,
-            })
-            .with(Renderable {
-                glyph: monster_glyph,
-                bg: Color::Black,
-                fg: Color::Red,
-            })
-            .with(Monster {})
-            .with(Name {
-                name: name.to_string(),
-            })
-            .with(Viewshed {
-                visible_tiles: Vec::new(),
-                range: 8,
-            })
-            .with(BlocksTile {})
-            .with(Stats {
-                max_hp: 6,
-                hp: 6,
-                strength: 2,
-                defense: 1,
-            })
-            .build();
+    }
+
+    for (index, room) in map.rooms.iter().skip(1).enumerate() {
+        if index > (MAX_ITEMS as usize) { break; }
+        let width = room.x2 - room.x1;
+        let height = room.y2 - room.y1;
+        let item_x = room.x1 + rng.roll_dice(1, width - 1);
+        let item_y = room.y1 + rng.roll_dice(1, height - 1);
+         match rng.roll_dice(1, 1) {
+            1 => {
+                spawn_potion_health(world, item_x, item_y);
+                info!("Spawned health potion at {} {}", item_x, item_y)
+            },
+            _ => warn!("generate_floor received unexpected random item spawn diceroll, skipping..."),
+         }
     }
 
     world.insert(RunState::AwaitingInput);

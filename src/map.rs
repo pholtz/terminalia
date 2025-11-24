@@ -5,8 +5,16 @@ use specs::Entity;
 
 use crate::rect::Rect;
 
+// Map constants
 pub const MAX_WIDTH: i32 = 80;
 pub const MAX_HEIGHT: i32 = 50;
+
+// Room constants
+pub const MIN_SIZE: i32 = 6;
+pub const MAX_SIZE: i32 = 10;
+pub const MAX_ROOMS: i32 = 30;
+pub const MAX_MONSTERS: i32 = 20;
+pub const MAX_ITEMS: i32 = 10;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum TileType {
@@ -99,9 +107,6 @@ impl Map {
             width: MAX_WIDTH,
             height: MAX_HEIGHT,
         };
-        const MAX_ROOMS : i32 = 30;
-        const MIN_SIZE : i32 = 6;
-        const MAX_SIZE : i32 = 10;
     
         for _ in 0..MAX_ROOMS {
             let w = rng.range(MIN_SIZE, MAX_SIZE);

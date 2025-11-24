@@ -12,103 +12,29 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, Borders, Padding, Paragraph},
 };
-use rltk::{Point, RandomNumberGenerator};
+use rltk::Point;
 use simplelog::{CombinedLogger, Config, WriteLogger};
 use specs::prelude::*;
-use specs_derive::Component;
 use std::cmp::{max, min};
 
-mod damage_system;
-mod map;
-mod map_indexing_system;
-mod melee_combat_system;
-mod monster_system;
-mod rect;
-mod visibility_system;
+mod component;
 mod floor;
+mod map;
+mod rect;
+mod render;
+mod spawn;
+mod system;
 
-use crate::{
-    damage_system::DamageSystem, floor::generate_floor, map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH}, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, visibility_system::VisibilitySystem
+use render::game_over::render_game_over;
+use system::{
+    damage_system, inventory_system, map_indexing_system, melee_combat_system, monster_system, visibility_system,
 };
 
-#[derive(Component, Clone, Copy)]
-pub struct Position {
-    pub x: i32,
-    pub y: i32,
-}
-
-#[derive(Component)]
-pub struct Renderable {
-    pub glyph: char,
-    pub fg: Color,
-    pub bg: Color,
-}
-
-#[derive(Component, Debug)]
-pub struct Player {}
-
-#[derive(Component, Debug)]
-pub struct Monster {}
-
-#[derive(Component, Debug)]
-pub struct Logbook {
-    pub entries: Vec<String>,
-    pub scroll_offset: u16,
-}
-
-#[derive(Component, Debug)]
-pub struct Name {
-    pub name: String,
-}
-
-#[derive(Component)]
-pub struct Viewshed {
-    pub visible_tiles: Vec<Point>,
-    pub range: i32,
-}
-
-#[derive(Component)]
-pub struct BlocksTile {}
-
-#[derive(Component)]
-pub struct Stats {
-    pub max_hp: i32,
-    pub hp: i32,
-    pub strength: i32,
-    pub defense: i32,
-}
-
-#[derive(Component)]
-pub struct Inventory {
-    pub gold: i32,
-}
-
-#[derive(Component)]
-pub struct Attack {
-    pub target: Entity,
-}
-
-#[derive(Component)]
-pub struct Damage {
-    pub amount: Vec<i32>,
-}
-
-impl Damage {
-    pub fn new_damage(store: &mut WriteStorage<Damage>, victim: Entity, amount: i32) {
-        if let Some(damage) = store.get_mut(victim) {
-            damage.amount.push(amount);
-        } else {
-            store
-                .insert(
-                    victim,
-                    Damage {
-                        amount: vec![amount],
-                    },
-                )
-                .expect("Unable to insert damage");
-        }
-    }
-}
+use crate::{
+    component::{
+        Attack, BlocksTile, Damage, InBackpack, Inventory, Item, Logbook, Monster, Name, Player, Position, Potion, Renderable, Stats, Viewshed, WantsToPickupItem
+    }, damage_system::DamageSystem, floor::generate_floor, inventory_system::ItemCollectionSystem, map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH}, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, visibility_system::VisibilitySystem
+};
 
 pub struct App {
     pub ecs: World,
@@ -116,6 +42,7 @@ pub struct App {
     screen: Screen,
     main_screen: MainScreen,
     menu_index: u8,
+    floor_index: u8,
     exit: bool,
 }
 
@@ -143,6 +70,33 @@ pub enum RunState {
     AwaitingInput,
     PlayerTurn,
     MonsterTurn,
+}
+
+fn try_get_item(ecs: &mut World) {
+    let player_pos = ecs.fetch::<Point>();
+    let player_entity = ecs.fetch::<Entity>();
+    let entities = ecs.entities();
+    let items = ecs.read_storage::<Item>();
+    let positions = ecs.read_storage::<Position>();
+    let mut logbook = ecs.fetch_mut::<Logbook>();
+
+    let mut target_item: Option<Entity> = None;
+    for (item_entity, _item, position) in (&entities, &items, &positions).join() {
+        if position.x == player_pos.x && position.y == player_pos.y {
+            target_item = Some(item_entity);
+        }
+    }
+
+    match target_item {
+        None => logbook.entries.push("There is nothing here to pick up.".to_string()),
+        Some(item) => {
+            let mut pickup = ecs.write_storage::<WantsToPickupItem>();
+            pickup.insert(*player_entity, WantsToPickupItem {
+                collected_by: *player_entity,
+                item: item
+            }).expect("Unable to insert item pickup into ecs");
+        }
+    }
 }
 
 fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
@@ -258,7 +212,7 @@ impl App {
                 MainScreen::Split => self.render_game(frame),
                 MainScreen::Log => self.render_log(frame),
             },
-            Screen::GameOver => self.render_game_over(frame),
+            Screen::GameOver => render_game_over(frame),
         }
     }
 
@@ -302,7 +256,7 @@ impl App {
                         self.ecs = reinitialize_world();
                         generate_floor(0, 0, &mut self.ecs);
                         self.screen = Screen::Main;
-                    },
+                    }
                     1 => self.exit(),
                     _ => {}
                 },
@@ -327,6 +281,8 @@ impl App {
                     KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('j') => {
                         try_move_player(0, 1, &mut self.ecs)
                     }
+
+                    KeyCode::Char('g') => try_get_item(&mut self.ecs),
 
                     KeyCode::Char('q') => self.main_screen = MainScreen::Log,
                     KeyCode::Char(' ') => {
@@ -354,7 +310,7 @@ impl App {
                     self.dispatcher = reinitialize_systems(&mut self.ecs);
                     generate_floor(0, 0, &mut self.ecs);
                     self.screen = Screen::Menu;
-                },
+                }
                 _ => {}
             },
         }
@@ -439,7 +395,7 @@ impl App {
                     }
                     TileType::Wall => {
                         spans.push(Span::styled("#", Style::default().fg(Color::Green)))
-                    },
+                    }
                     TileType::DownStairs => {
                         spans.push(Span::styled("目", Style::default().fg(Color::Yellow)))
                     }
@@ -455,11 +411,14 @@ impl App {
         }
 
         /*
-         * Overwrite base map spans with any renderable characters
+         * Overwrite base map spans with any renderable characters.
+         * Sort renderables by index (render order) prior to rendering, lowest first.
          */
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
-        for (pos, render) in (&positions, &renderables).join() {
+        let mut renderable_entities = (&positions, &renderables).join().collect::<Vec<_>>();
+        renderable_entities.sort_by(|&a, &b| b.1.index.cmp(&a.1.index));
+        for (pos, render) in renderable_entities.iter() {
             if map.revealed_tiles[xy_idx(pos.x, pos.y)] {
                 lines[pos.y as usize].spans[pos.x as usize] =
                     Span::styled(render.glyph.to_string(), Style::default().fg(render.fg));
@@ -505,26 +464,6 @@ impl App {
         frame.render_widget(Paragraph::new(Text::raw(serialized_log)), layout[2]);
     }
 
-    fn render_game_over(&self, frame: &mut Frame) {
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(40),
-                Constraint::Length(1),
-                Constraint::Percentage(40),
-            ])
-            .split(frame.area());
-
-        frame.render_widget(
-            Paragraph::new(Text::from(Span::styled(
-                "Y O U  D I E D",
-                Style::default().fg(Color::Red),
-            )))
-            .centered(),
-            layout[1],
-        );
-    }
-
     /**
      * Renders the fullscreen logbook, when toggled.
      */
@@ -556,15 +495,28 @@ fn reinitialize_world() -> World {
     world.register::<Inventory>();
     world.register::<Attack>();
     world.register::<Damage>();
+    world.register::<Item>();
+    world.register::<Potion>();
+    world.register::<InBackpack>();
+    world.register::<WantsToPickupItem>();
     return world;
 }
 
 fn reinitialize_systems(world: &mut World) -> Dispatcher<'static, 'static> {
     let mut dispatcher = DispatcherBuilder::new()
         .with(VisibilitySystem {}, "visibility_system", &[])
+        .with(ItemCollectionSystem {}, "inventory_collection_system", &[])
         .with(MonsterSystem {}, "monster_system", &["visibility_system"])
-        .with(MapIndexingSystem {}, "map_indexing_system", &["monster_system"])
-        .with(MeleeCombatSystem {}, "melee_combat_system", &["map_indexing_system"])
+        .with(
+            MapIndexingSystem {},
+            "map_indexing_system",
+            &["monster_system"],
+        )
+        .with(
+            MeleeCombatSystem {},
+            "melee_combat_system",
+            &["map_indexing_system"],
+        )
         .with(DamageSystem {}, "damage_system", &["melee_combat_system"])
         .build();
     dispatcher.setup(world);
@@ -592,6 +544,7 @@ fn main() -> Result<()> {
         screen: Screen::Menu,
         main_screen: MainScreen::Split,
         menu_index: 0,
+        floor_index: 0,
         exit: false,
     }
     .run(&mut terminal);
