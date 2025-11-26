@@ -18,6 +18,7 @@ use specs::prelude::*;
 use std::cmp::{max, min};
 
 mod component;
+mod input;
 mod floor;
 mod map;
 mod rect;
@@ -25,15 +26,27 @@ mod render;
 mod spawn;
 mod system;
 
+use input::menu::handle_menu_key_event;
 use render::game_over::render_game_over;
+use render::inventory::render_inventory;
 use system::{
-    damage_system, inventory_system, map_indexing_system, melee_combat_system, monster_system, visibility_system,
+    damage_system, inventory_system, map_indexing_system, melee_combat_system, monster_system,
+    visibility_system,
 };
 
 use crate::{
     component::{
-        Attack, BlocksTile, Damage, InBackpack, Inventory, Item, Logbook, Monster, Name, Player, Position, Potion, Renderable, Stats, Viewshed, WantsToPickupItem
-    }, damage_system::DamageSystem, floor::generate_floor, inventory_system::ItemCollectionSystem, map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH}, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, visibility_system::VisibilitySystem
+        Attack, BlocksTile, Damage, InBackpack, Inventory, Item, Logbook, Monster, Name, Player,
+        Position, Potion, Renderable, Stats, Viewshed, WantsToPickupItem,
+    },
+    damage_system::DamageSystem,
+    floor::generate_floor,
+    inventory_system::ItemCollectionSystem,
+    map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, xy_idx},
+    map_indexing_system::MapIndexingSystem,
+    melee_combat_system::MeleeCombatSystem,
+    monster_system::MonsterSystem,
+    visibility_system::VisibilitySystem,
 };
 
 pub struct App {
@@ -55,7 +68,7 @@ pub enum Screen {
 pub enum MainScreen {
     /**
      * The default view.
-     * A split screen between the viewshed and the log.
+     * A split screen between the viewshed and the minilog.
      */
     Split,
 
@@ -63,6 +76,8 @@ pub enum MainScreen {
      * A toggleable view containing a fullscreen logbook.
      */
     Log,
+
+    Inventory,
 }
 
 #[derive(PartialEq, Debug)]
@@ -88,13 +103,20 @@ fn try_get_item(ecs: &mut World) {
     }
 
     match target_item {
-        None => logbook.entries.push("There is nothing here to pick up.".to_string()),
+        None => logbook
+            .entries
+            .push("There is nothing here to pick up.".to_string()),
         Some(item) => {
             let mut pickup = ecs.write_storage::<WantsToPickupItem>();
-            pickup.insert(*player_entity, WantsToPickupItem {
-                collected_by: *player_entity,
-                item: item
-            }).expect("Unable to insert item pickup into ecs");
+            pickup
+                .insert(
+                    *player_entity,
+                    WantsToPickupItem {
+                        collected_by: *player_entity,
+                        item: item,
+                    },
+                )
+                .expect("Unable to insert item pickup into ecs");
         }
     }
 }
@@ -176,7 +198,7 @@ impl App {
             match self.screen {
                 Screen::Menu | Screen::GameOver => {}
                 Screen::Main => match self.main_screen {
-                    MainScreen::Log => {}
+                    MainScreen::Log | MainScreen::Inventory => {}
                     MainScreen::Split => {
                         {
                             let mut runstate = (&mut self.ecs).write_resource::<RunState>();
@@ -205,12 +227,13 @@ impl App {
         Ok(())
     }
 
-    fn draw(&self, frame: &mut Frame) {
+    fn draw(&mut self, frame: &mut Frame) {
         match self.screen {
             Screen::Menu => self.render_menu(frame),
             Screen::Main => match self.main_screen {
                 MainScreen::Split => self.render_game(frame),
                 MainScreen::Log => self.render_log(frame),
+                MainScreen::Inventory => render_inventory(&mut self.ecs, frame),
             },
             Screen::GameOver => render_game_over(frame),
         }
@@ -235,33 +258,7 @@ impl App {
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match self.screen {
-            Screen::Menu => match key_event.code {
-                KeyCode::Esc => self.exit(),
-                KeyCode::Up | KeyCode::Char('w') => {
-                    if self.menu_index == 0 {
-                        self.menu_index = 1;
-                    } else {
-                        self.menu_index -= 1;
-                    }
-                }
-                KeyCode::Down | KeyCode::Char('s') => {
-                    if self.menu_index == 1 {
-                        self.menu_index = 0;
-                    } else {
-                        self.menu_index += 1;
-                    }
-                }
-                KeyCode::Enter => match self.menu_index {
-                    0 => {
-                        self.ecs = reinitialize_world();
-                        generate_floor(0, 0, &mut self.ecs);
-                        self.screen = Screen::Main;
-                    }
-                    1 => self.exit(),
-                    _ => {}
-                },
-                _ => {}
-            },
+            Screen::Menu => handle_menu_key_event(self, key_event),
             Screen::Main => match self.main_screen {
                 MainScreen::Split => match key_event.code {
                     KeyCode::Esc => self.screen = Screen::Menu,
@@ -283,12 +280,8 @@ impl App {
                     }
 
                     KeyCode::Char('g') => try_get_item(&mut self.ecs),
-
                     KeyCode::Char('q') => self.main_screen = MainScreen::Log,
-                    KeyCode::Char(' ') => {
-                        let mut logbook = self.ecs.fetch_mut::<Logbook>();
-                        logbook.entries.push("Letsa go!".to_string());
-                    }
+                    KeyCode::Char('i') => self.main_screen = MainScreen::Inventory,
                     _ => {}
                 },
                 MainScreen::Log => match key_event.code {
@@ -301,6 +294,10 @@ impl App {
                     }
 
                     KeyCode::Char('q') | KeyCode::Esc => self.main_screen = MainScreen::Split,
+                    _ => {}
+                },
+                MainScreen::Inventory => match key_event.code {
+                    KeyCode::Char('i') => self.main_screen = MainScreen::Split,
                     _ => {}
                 },
             },
