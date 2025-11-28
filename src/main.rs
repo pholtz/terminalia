@@ -7,10 +7,9 @@ use rand::Rng;
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Direction, Layout},
-    style::{Color, Style, Stylize},
-    symbols::border,
+    style::{Color, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Padding, Paragraph},
+    widgets::Paragraph,
 };
 use rltk::Point;
 use simplelog::{CombinedLogger, Config, WriteLogger};
@@ -18,8 +17,8 @@ use specs::prelude::*;
 use std::cmp::{max, min};
 
 mod component;
-mod input;
 mod floor;
+mod input;
 mod map;
 mod rect;
 mod render;
@@ -29,6 +28,7 @@ mod system;
 use input::menu::handle_menu_key_event;
 use render::game_over::render_game_over;
 use render::inventory::render_inventory;
+use render::menu::render_menu;
 use system::{
     damage_system, inventory_system, map_indexing_system, melee_combat_system, monster_system,
     visibility_system,
@@ -229,7 +229,7 @@ impl App {
 
     fn draw(&mut self, frame: &mut Frame) {
         match self.screen {
-            Screen::Menu => self.render_menu(frame),
+            Screen::Menu => render_menu(frame, self.menu_index),
             Screen::Main => match self.main_screen {
                 MainScreen::Split => self.render_game(frame),
                 MainScreen::Log => self.render_log(frame),
@@ -314,62 +314,6 @@ impl App {
     }
 
     /**
-     * Renders the menu for the game.
-     *
-     * Should consist of a border and a couple selectable menu items for now.
-     * Each one will change the main screen state.
-     */
-    fn render_menu(&self, frame: &mut Frame) {
-        let menu = Block::default()
-            .borders(Borders::all())
-            .padding(Padding::symmetric(5, 6))
-            .inner(frame.area());
-        let vertical_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![
-                Constraint::Fill(1),
-                Constraint::Percentage(50),
-                Constraint::Fill(1),
-            ])
-            .split(menu);
-        let horizontal_layout = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![
-                Constraint::Fill(1),
-                Constraint::Percentage(25),
-                Constraint::Fill(1),
-            ])
-            .split(vertical_layout[1]);
-        let menu_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(3), Constraint::Length(3)])
-            .split(horizontal_layout[1]);
-
-        frame.render_widget(
-            Paragraph::new(Text::from("New Game"))
-                .centered()
-                .bg(if self.menu_index == 0 {
-                    Color::Cyan
-                } else {
-                    Color::Black
-                })
-                .block(Block::bordered().border_set(border::THICK)),
-            menu_layout[0],
-        );
-        frame.render_widget(
-            Paragraph::new(Text::from("Quit"))
-                .centered()
-                .bg(if self.menu_index == 1 {
-                    Color::Cyan
-                } else {
-                    Color::Black
-                })
-                .block(Block::bordered().border_set(border::THICK)),
-            menu_layout[1],
-        );
-    }
-
-    /**
      * The base render function for the game itself.
      *
      * This should handle rendering the game window itself
@@ -430,8 +374,8 @@ impl App {
         let inventory = self.ecs.read_storage::<Inventory>();
         let status_line = match (stats.get(*player), inventory.get(*player)) {
             (Some(stats), Some(inventory)) => format!(
-                "HP: {} / {}  Gold: {}",
-                stats.hp, stats.max_hp, inventory.gold
+                "HP: {} / {}  Floor: {}  Gold: {}",
+                stats.hp, stats.max_hp, self.floor_index, inventory.gold
             ),
             _ => String::new(),
         };

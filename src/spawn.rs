@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use ratatui::style::Color;
 use specs::prelude::*;
 
@@ -30,7 +31,7 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
             strength: 5,
             defense: 1,
         })
-        .with(Inventory { gold: 0 })
+        .with(Inventory { gold: 0, items: IndexMap::new() })
         .build();
 }
 

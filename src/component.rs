@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use ratatui::style::Color;
 use rltk::Point;
 use specs::prelude::*;
@@ -54,6 +55,7 @@ pub struct Stats {
 #[derive(Component)]
 pub struct Inventory {
     pub gold: i32,
+    pub items: IndexMap<String, Vec<Entity>>,
 }
 
 #[derive(Component, Debug)]
