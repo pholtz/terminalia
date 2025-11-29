@@ -1,6 +1,6 @@
 use specs::{Entities, Entity, Join, ReadExpect, ReadStorage, System, WriteExpect, WriteStorage};
 
-use crate::component::{InBackpack, Inventory, Logbook, Name, Position, WantsToConsumeItem, WantsToPickupItem};
+use crate::component::{InBackpack, Inventory, Logbook, Name, Position, Potion, Stats, WantsToConsumeItem, WantsToPickupItem};
 
 pub struct InventorySystem {}
 
@@ -12,9 +12,11 @@ impl<'a> System<'a> for InventorySystem {
         WriteStorage<'a, WantsToConsumeItem>,
         WriteStorage<'a, Position>,
         ReadStorage<'a, Name>,
+        WriteStorage<'a, Stats>,
         WriteStorage<'a, InBackpack>,
         WriteExpect<'a, Logbook>,
         WriteStorage<'a, Inventory>,
+        ReadStorage<'a, Potion>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
@@ -25,11 +27,16 @@ impl<'a> System<'a> for InventorySystem {
             mut wants_consume,
             mut positions,
             names,
+            mut stats,
             mut backpack,
             mut logbook,
             mut inventory,
+            potions,
         ) = data;
 
+        /*
+         * Item collection subsystem
+         */
         for (pickup, _name) in (&wants_pickup, &names).join() {
             positions.remove(pickup.item);
             backpack.insert(
@@ -50,11 +57,22 @@ impl<'a> System<'a> for InventorySystem {
         }
         wants_pickup.clear();
 
-        for (entity, consume, _name) in (&entities, &wants_consume, &names).join() {
+        /*
+         * Item consumption subsystem
+         * 
+         * Iterates over the list of consumable components and then clears them.
+         * Each consumable entity may or may not have an effect, if so it should
+         * be explicitly mentioned and handled here, e.g. potion drinking.
+         */
+        for (entity, consume, stat) in (&entities, &wants_consume, &mut stats).join() {
             let item_name = names.get(consume.item).expect("Unable to access name for consumed item");
 
-            if entity == *player_entity {
-                logbook.entries.push(format!("You consume the {}.", item_name.name));
+            // Someone wants to drink a potion...
+            if let Some(potion) = potions.get(consume.item) {
+                stat.hp = i32::min(stat.max_hp, stat.hp + potion.heal_amount);
+                if entity == *player_entity {
+                    logbook.entries.push(format!("You consume the {}, healing {} hp.", item_name.name, potion.heal_amount));
+                }
             }
         }
         wants_consume.clear();
