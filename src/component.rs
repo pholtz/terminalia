@@ -79,6 +79,11 @@ pub struct WantsToPickupItem {
     pub item: Entity,
 }
 
+#[derive(Component, Debug)]
+pub struct WantsToConsumeItem {
+    pub item: Entity,
+}
+
 #[derive(Component)]
 pub struct Attack {
     pub target: Entity,

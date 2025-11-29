@@ -37,27 +37,17 @@ use system::{
 use crate::{
     component::{
         Attack, BlocksTile, Damage, InBackpack, Inventory, Item, Logbook, Monster, Name, Player,
-        Position, Potion, Renderable, Stats, Viewshed, WantsToPickupItem,
+        Position, Potion, Renderable, Stats, Viewshed, WantsToConsumeItem, WantsToPickupItem,
     },
     damage_system::DamageSystem,
     floor::generate_floor,
-    inventory_system::ItemCollectionSystem,
+    inventory_system::InventorySystem,
     map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, xy_idx},
     map_indexing_system::MapIndexingSystem,
     melee_combat_system::MeleeCombatSystem,
     monster_system::MonsterSystem,
     visibility_system::VisibilitySystem,
 };
-
-pub struct App {
-    pub ecs: World,
-    pub dispatcher: Dispatcher<'static, 'static>,
-    screen: Screen,
-    main_screen: MainScreen,
-    menu_index: u8,
-    floor_index: u8,
-    exit: bool,
-}
 
 pub enum Screen {
     Menu,
@@ -121,6 +111,23 @@ fn try_get_item(ecs: &mut World) {
     }
 }
 
+fn try_consume_item(ecs: &mut World, inventory_index: u8) {
+    let player_entity = ecs.fetch::<Entity>();
+    let inventories = ecs.read_storage::<Inventory>();
+    let mut wants_consume = ecs.write_storage::<WantsToConsumeItem>();
+
+    if let Some(inventory) = inventories.get(*player_entity) {
+        if let Some(item_stack) = inventory.items.get_index(inventory_index as usize) {
+            if let Some(item) = item_stack.1.get(0) {
+                wants_consume.insert(
+                    *player_entity,
+                    WantsToConsumeItem { item: *item }
+                ).expect("Unable to insert item consumption into ecs");
+            }
+        }
+    }
+}
+
 fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let entities = ecs.entities();
     let mut positions = ecs.write_storage::<Position>();
@@ -176,6 +183,17 @@ fn try_scroll_logbook(ecs: &mut World, delta: i16) {
             None => {}
         }
     }
+}
+
+pub struct App {
+    pub ecs: World,
+    pub dispatcher: Dispatcher<'static, 'static>,
+    screen: Screen,
+    main_screen: MainScreen,
+    menu_index: u8,
+    floor_index: u8,
+    inventory_index: u8,
+    exit: bool,
 }
 
 impl App {
@@ -298,6 +316,7 @@ impl App {
                 },
                 MainScreen::Inventory => match key_event.code {
                     KeyCode::Char('i') => self.main_screen = MainScreen::Split,
+                    KeyCode::Enter => try_consume_item(&mut self.ecs, self.inventory_index),
                     _ => {}
                 },
             },
@@ -440,13 +459,14 @@ fn reinitialize_world() -> World {
     world.register::<Potion>();
     world.register::<InBackpack>();
     world.register::<WantsToPickupItem>();
+    world.register::<WantsToConsumeItem>();
     return world;
 }
 
 fn reinitialize_systems(world: &mut World) -> Dispatcher<'static, 'static> {
     let mut dispatcher = DispatcherBuilder::new()
         .with(VisibilitySystem {}, "visibility_system", &[])
-        .with(ItemCollectionSystem {}, "inventory_collection_system", &[])
+        .with(InventorySystem {}, "inventory_system", &[])
         .with(MonsterSystem {}, "monster_system", &["visibility_system"])
         .with(
             MapIndexingSystem {},
@@ -486,6 +506,7 @@ fn main() -> Result<()> {
         main_screen: MainScreen::Split,
         menu_index: 0,
         floor_index: 0,
+        inventory_index: 0,
         exit: false,
     }
     .run(&mut terminal);

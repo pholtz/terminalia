@@ -52,6 +52,10 @@ pub fn spawn_potion_health(ecs: &mut World, x: i32, y: i32) {
         .build();
 }
 
+pub fn spawn_other(ecs: &mut World, x: i32, y: i32) {
+    
+}
+
 pub fn spawn_monster_rat(ecs: &mut World, pos: Position) {
     ecs.create_entity()
         .with(Position { x: pos.x, y: pos.y })

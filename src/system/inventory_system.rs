@@ -1,13 +1,15 @@
-use specs::{Entity, Join, ReadExpect, ReadStorage, System, WriteExpect, WriteStorage};
+use specs::{Entities, Entity, Join, ReadExpect, ReadStorage, System, WriteExpect, WriteStorage};
 
-use crate::component::{InBackpack, Inventory, Logbook, Name, Position, WantsToPickupItem};
+use crate::component::{InBackpack, Inventory, Logbook, Name, Position, WantsToConsumeItem, WantsToPickupItem};
 
-pub struct ItemCollectionSystem {}
+pub struct InventorySystem {}
 
-impl<'a> System<'a> for ItemCollectionSystem {
+impl<'a> System<'a> for InventorySystem {
     type SystemData = (
+        Entities<'a>,
         ReadExpect<'a, Entity>,
         WriteStorage<'a, WantsToPickupItem>,
+        WriteStorage<'a, WantsToConsumeItem>,
         WriteStorage<'a, Position>,
         ReadStorage<'a, Name>,
         WriteStorage<'a, InBackpack>,
@@ -17,8 +19,10 @@ impl<'a> System<'a> for ItemCollectionSystem {
 
     fn run(&mut self, data: Self::SystemData) {
         let (
+            entities,
             player_entity,
             mut wants_pickup,
+            mut wants_consume,
             mut positions,
             names,
             mut backpack,
@@ -45,5 +49,14 @@ impl<'a> System<'a> for ItemCollectionSystem {
             }
         }
         wants_pickup.clear();
+
+        for (entity, consume, _name) in (&entities, &wants_consume, &names).join() {
+            let item_name = names.get(consume.item).expect("Unable to access name for consumed item");
+
+            if entity == *player_entity {
+                logbook.entries.push(format!("You consume the {}.", item_name.name));
+            }
+        }
+        wants_consume.clear();
     }
 }
