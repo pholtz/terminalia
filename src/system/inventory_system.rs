@@ -1,6 +1,6 @@
 use specs::{Entities, Entity, Join, ReadExpect, ReadStorage, System, WriteExpect, WriteStorage};
 
-use crate::component::{InBackpack, Inventory, Logbook, Name, Position, Potion, Stats, WantsToConsumeItem, WantsToPickupItem};
+use crate::{component::{InBackpack, Inventory, Logbook, MagicMapper, Name, Position, Potion, Stats, WantsToConsumeItem, WantsToPickupItem}, map::Map};
 
 pub struct InventorySystem {}
 
@@ -16,7 +16,9 @@ impl<'a> System<'a> for InventorySystem {
         WriteStorage<'a, InBackpack>,
         WriteExpect<'a, Logbook>,
         WriteStorage<'a, Inventory>,
+        WriteExpect<'a, Map>,
         ReadStorage<'a, Potion>,
+        ReadStorage<'a, MagicMapper>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
@@ -30,8 +32,10 @@ impl<'a> System<'a> for InventorySystem {
             mut stats,
             mut backpack,
             mut logbook,
-            mut inventory,
+            mut inventories,
+            mut map,
             potions,
+            magic_mappers,
         ) = data;
 
         /*
@@ -46,9 +50,9 @@ impl<'a> System<'a> for InventorySystem {
 
             let item_name = names.get(pickup.item).expect("Unable to access name for picked up item");
 
-            if let Some(inv) = inventory.get_mut(pickup.collected_by) {
-                let item = inv.items.entry(item_name.name.clone()).or_insert(vec![]);
-                item.push(pickup.item);
+            if let Some(inventory) = inventories.get_mut(pickup.collected_by) {
+                let item_stack = inventory.items.entry(item_name.name.clone()).or_insert(vec![]);
+                item_stack.push(pickup.item);
             }
             
             if pickup.collected_by == *player_entity {
@@ -66,12 +70,41 @@ impl<'a> System<'a> for InventorySystem {
          */
         for (entity, consume, stat) in (&entities, &wants_consume, &mut stats).join() {
             let item_name = names.get(consume.item).expect("Unable to access name for consumed item");
+            let mut has_effect = false;
 
             // Someone wants to drink a potion...
             if let Some(potion) = potions.get(consume.item) {
+                has_effect = true;
                 stat.hp = i32::min(stat.max_hp, stat.hp + potion.heal_amount);
                 if entity == *player_entity {
                     logbook.entries.push(format!("You consume the {}, healing {} hp.", item_name.name, potion.heal_amount));
+                }
+            }
+
+            if magic_mappers.contains(consume.item) {
+                has_effect = true;
+                for tile in map.revealed_tiles.iter_mut() {
+                    *tile = true;
+                }
+                logbook.entries.push(format!("The darkness lifts, and you become more aware of everything around you."));
+            }
+
+            if !has_effect {
+                logbook.entries.push(format!("You consume the {}, but nothing happens.", item_name.name));
+            }
+
+            /*
+             * Decrement the item stack since it was used.
+             * If this was the final element in the stack, remove the item entirely.
+             */
+            if let Some(inventory) = inventories.get_mut(entity) {
+                let item_stack = inventory.items.entry(item_name.name.clone()).or_insert(vec![]);
+                item_stack.pop();
+                if item_stack.is_empty() {
+                    inventory.items.shift_remove(&item_name.name);
+                    if inventory.index > 0 {
+                        inventory.index -= 1;
+                    }
                 }
             }
         }

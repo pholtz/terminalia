@@ -1,8 +1,8 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::{floor::generate_floor, reinitialize_world, App, Screen};
+use crate::{floor::generate_floor, reinitialize_world, App, RootScreen};
 
-pub fn handle_menu_key_event(app: &mut App, key_event: KeyEvent) {
+pub fn handle_menu_key_event(app: &mut App, key_event: KeyEvent) -> bool {
     match key_event.code {
         KeyCode::Esc => app.exit(),
         KeyCode::Up | KeyCode::Char('w') => {
@@ -23,11 +23,12 @@ pub fn handle_menu_key_event(app: &mut App, key_event: KeyEvent) {
             0 => {
                 app.ecs = reinitialize_world();
                 generate_floor(0, 0, &mut app.ecs);
-                app.screen = Screen::Main;
+                app.root_screen = RootScreen::Main;
             }
             1 => app.exit(),
             _ => {}
         },
         _ => {}
     }
+    return false
 }

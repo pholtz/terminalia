@@ -3,8 +3,7 @@ use ratatui::style::Color;
 use specs::prelude::*;
 
 use crate::component::{
-    BlocksTile, Inventory, Item, Monster, Name, Player, Position, Potion, Renderable, Stats,
-    Viewshed,
+    BlocksTile, Inventory, Item, MagicMapper, Monster, Name, Player, Position, Potion, Renderable, Stats, Viewshed
 };
 
 pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
@@ -31,7 +30,11 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
             strength: 5,
             defense: 1,
         })
-        .with(Inventory { gold: 0, items: IndexMap::new() })
+        .with(Inventory {
+            gold: 0,
+            items: IndexMap::new(),
+            index: 0,
+        })
         .build();
 }
 
@@ -45,15 +48,50 @@ pub fn spawn_potion_health(ecs: &mut World, x: i32, y: i32) {
             index: 2,
         })
         .with(Name {
-            name: "Potion of health".to_string(),
+            name: "Potion of pathetically minor healing".to_string(),
         })
-        .with(Item {})
+        .with(Item {
+            description: "A glowing red vial of an unknown substance. Smells delicious.".to_string(),
+        })
         .with(Potion { heal_amount: 10 })
         .build();
 }
 
-pub fn spawn_other(ecs: &mut World, x: i32, y: i32) {
-    
+pub fn spawn_scroll_magic_mapping(ecs: &mut World, x: i32, y: i32) {
+    ecs.create_entity()
+        .with(Position { x: x, y: y })
+        .with(Renderable {
+            glyph: ']',
+            fg: Color::LightMagenta,
+            bg: Color::Black,
+            index: 2,
+        })
+        .with(Name {
+            name: "Scroll of magic mapping".to_string(),
+        })
+        .with(Item {
+            description: "An ancient looking, mysterious scroll that glows with a faint white light. Undecipherable.".to_string(),
+        })
+        .with(MagicMapper {})
+        .build();
+}
+
+pub fn spawn_dagger(ecs: &mut World, x: i32, y: i32) {
+    ecs.create_entity()
+        .with(Position { x: x, y: y })
+        .with(Renderable {
+            glyph: '/',
+            fg: Color::Gray,
+            bg: Color::Black,
+            index: 2,
+        })
+        .with(Name {
+            name: "Dagger".to_string(),
+        })
+        .with(Item {
+            description: "A short, pointy blade made for quick cuts.".to_string()
+        })
+        .build();
 }
 
 pub fn spawn_monster_rat(ecs: &mut World, pos: Position) {

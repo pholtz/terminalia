@@ -56,17 +56,21 @@ pub struct Stats {
 pub struct Inventory {
     pub gold: i32,
     pub items: IndexMap<String, Vec<Entity>>,
+    pub index: usize,
 }
 
 #[derive(Component, Debug)]
 pub struct Item {
-
+    pub description: String,
 }
 
 #[derive(Component, Debug)]
 pub struct Potion {
     pub heal_amount: i32,
 }
+
+#[derive(Component, Debug)]
+pub struct MagicMapper {}
 
 #[derive(Component, Debug)]
 pub struct InBackpack {
