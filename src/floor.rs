@@ -1,11 +1,7 @@
 use crate::{
-    Logbook, Player, Position, RunState,
-    component::InBackpack,
-    map::{MAX_ITEMS, MAX_MONSTERS, Map},
-    spawn::{
-        spawn_dagger, spawn_monster_rat, spawn_monster_snake, spawn_player, spawn_potion_health,
-        spawn_scroll_magic_mapping,
-    },
+    component::InBackpack, map::{Map, MAX_ITEMS, MAX_MONSTERS}, spawn::{
+        spawn_dagger, spawn_monster_goblin, spawn_monster_rat, spawn_monster_snake, spawn_player, spawn_potion_health, spawn_scroll_magic_mapping
+    }, Logbook, Player, Position, RunState
 };
 use log::warn;
 use rltk::{Point, RandomNumberGenerator};
@@ -70,21 +66,14 @@ pub fn generate_floor(seed: u64, floor_index: u8, world: &mut World) {
         if index > (MAX_MONSTERS as usize) {
             break;
         }
-        match rng.roll_dice(1, 2) {
-            1 => spawn_monster_rat(
-                world,
-                Position {
-                    x: room.center().0,
-                    y: room.center().1,
-                },
-            ),
-            2 => spawn_monster_snake(
-                world,
-                Position {
-                    x: room.center().0,
-                    y: room.center().1,
-                },
-            ),
+        let position = Position {
+            x: room.center().0,
+            y: room.center().1,
+        };
+        match rng.roll_dice(1, 3) {
+            1 => spawn_monster_rat(world, position),
+            2 => spawn_monster_snake(world, position),
+            3 => spawn_monster_goblin(world, position),
             _ => warn!(
                 "generate_floor received unexpected random monster spawn diceroll, skipping..."
             ),

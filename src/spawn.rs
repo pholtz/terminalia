@@ -147,3 +147,30 @@ pub fn spawn_monster_snake(ecs: &mut World, pos: Position) {
         })
         .build();
 }
+
+pub fn spawn_monster_goblin(ecs: &mut World, pos: Position) {
+    ecs.create_entity()
+        .with(Position { x: pos.x, y: pos.y })
+        .with(Renderable {
+            glyph: 'g',
+            bg: Color::Black,
+            fg: Color::Red,
+            index: 1,
+        })
+        .with(Monster {})
+        .with(Name {
+            name: "goblin".to_string(),
+        })
+        .with(Viewshed {
+            visible_tiles: Vec::new(),
+            range: 12,
+        })
+        .with(BlocksTile {})
+        .with(Stats {
+            max_hp: 12,
+            hp: 12,
+            strength: 3,
+            defense: 1,
+        })
+        .build();
+}
