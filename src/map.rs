@@ -1,5 +1,6 @@
 use std::cmp::{min, max};
 
+use log::info;
 use rltk::{Algorithm2D, BaseMap, Point, RandomNumberGenerator};
 use specs::Entity;
 
@@ -122,8 +123,8 @@ impl Map {
                 map.apply_room_to_map(&new_room);
                 if !map.rooms.is_empty() {
                     let (new_x, new_y) = new_room.center();
-                    let (prev_x, prev_y) = map.rooms[map.rooms.len()-1].center();
-                    if rng.range(0,2) == 1 {
+                    let (prev_x, prev_y) = map.rooms[map.rooms.len() - 1].center();
+                    if rng.range(0, 2) == 1 {
                         map.apply_horizontal_tunnel(prev_x, new_x, prev_y);
                         map.apply_vertical_tunnel(prev_y, new_y, new_x);
                     } else {
@@ -131,13 +132,14 @@ impl Map {
                         map.apply_horizontal_tunnel(prev_x, new_x, new_y);
                     }
                 }
+                info!("Spawned new room with position ({}, {}) - ({}, {})", new_room.x1, new_room.y1, new_room.x2, new_room.y2);
                 map.rooms.push(new_room);            
             }
         }
 
         let (stair_x, stair_y) = map.rooms[map.rooms.len() - 1].center();
         map.tiles[xy_idx(stair_x, stair_y)] = TileType::DownStairs;
-        
+
         return map;
     }
     
