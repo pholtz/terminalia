@@ -1,7 +1,7 @@
 use ratatui::{text::Text, widgets::Paragraph, Frame};
 use specs::prelude::*;
 
-use crate::{component::Logbook, map::MAX_HEIGHT};
+use crate::{component::Logbook, generate::map::MAX_HEIGHT};
 
 /**
  * Renders the fullscreen logbook, when toggled.

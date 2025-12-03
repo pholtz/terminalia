@@ -1,9 +1,13 @@
-use std::cmp::{max, min};
+use crossterm::event::{KeyCode, KeyEvent};
 use rltk::Point;
 use specs::prelude::*;
-use crossterm::event::{KeyCode, KeyEvent};
+use std::cmp::{max, min};
 
-use crate::{component::{Attack, Item, Logbook, Player, Position, Stats, WantsToPickupItem}, map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH}, App, RootScreen, RunState, Screen};
+use crate::{
+    App, RootScreen, RunState, Screen,
+    component::{Attack, Item, Logbook, Player, Position, Stats, WantsToPickupItem},
+    generate::map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, xy_idx},
+};
 
 pub fn handle_main_explore_key_event(app: &mut App, key_event: KeyEvent) -> bool {
     match key_event.code {

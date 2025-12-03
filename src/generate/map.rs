@@ -4,7 +4,7 @@ use log::info;
 use rltk::{Algorithm2D, BaseMap, Point, RandomNumberGenerator};
 use specs::Entity;
 
-use crate::rect::Rect;
+use crate::generate::rect::Rect;
 
 // Map constants
 pub const MAX_WIDTH: i32 = 80;

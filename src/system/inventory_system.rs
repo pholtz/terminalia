@@ -1,6 +1,12 @@
 use specs::{Entities, Entity, Join, ReadExpect, ReadStorage, System, WriteExpect, WriteStorage};
 
-use crate::{component::{InBackpack, Inventory, Logbook, MagicMapper, Name, Position, Potion, Stats, WantsToConsumeItem, WantsToPickupItem}, map::Map};
+use crate::{
+    component::{
+        InBackpack, Inventory, Logbook, MagicMapper, Name, Position, Potion, Stats,
+        WantsToConsumeItem, WantsToPickupItem,
+    },
+    generate::map::Map,
+};
 
 pub struct InventorySystem {}
 
@@ -43,33 +49,46 @@ impl<'a> System<'a> for InventorySystem {
          */
         for (pickup, _name) in (&wants_pickup, &names).join() {
             positions.remove(pickup.item);
-            backpack.insert(
-                pickup.item,
-                InBackpack { owner: pickup.collected_by }
-            ).expect("Unable to add item to backpack");
+            backpack
+                .insert(
+                    pickup.item,
+                    InBackpack {
+                        owner: pickup.collected_by,
+                    },
+                )
+                .expect("Unable to add item to backpack");
 
-            let item_name = names.get(pickup.item).expect("Unable to access name for picked up item");
+            let item_name = names
+                .get(pickup.item)
+                .expect("Unable to access name for picked up item");
 
             if let Some(inventory) = inventories.get_mut(pickup.collected_by) {
-                let item_stack = inventory.items.entry(item_name.name.clone()).or_insert(vec![]);
+                let item_stack = inventory
+                    .items
+                    .entry(item_name.name.clone())
+                    .or_insert(vec![]);
                 item_stack.push(pickup.item);
             }
-            
+
             if pickup.collected_by == *player_entity {
-                logbook.entries.push(format!("You pick up the {}.", item_name.name));
+                logbook
+                    .entries
+                    .push(format!("You pick up the {}.", item_name.name));
             }
         }
         wants_pickup.clear();
 
         /*
          * Item consumption subsystem
-         * 
+         *
          * Iterates over the list of consumable components and then clears them.
          * Each consumable entity may or may not have an effect, if so it should
          * be explicitly mentioned and handled here, e.g. potion drinking.
          */
         for (entity, consume, stat) in (&entities, &wants_consume, &mut stats).join() {
-            let item_name = names.get(consume.item).expect("Unable to access name for consumed item");
+            let item_name = names
+                .get(consume.item)
+                .expect("Unable to access name for consumed item");
             let mut has_effect = false;
 
             // Someone wants to drink a potion...
@@ -77,7 +96,10 @@ impl<'a> System<'a> for InventorySystem {
                 has_effect = true;
                 stat.hp = i32::min(stat.max_hp, stat.hp + potion.heal_amount);
                 if entity == *player_entity {
-                    logbook.entries.push(format!("You consume the {}, healing {} hp.", item_name.name, potion.heal_amount));
+                    logbook.entries.push(format!(
+                        "You consume the {}, healing {} hp.",
+                        item_name.name, potion.heal_amount
+                    ));
                 }
             }
 
@@ -86,11 +108,16 @@ impl<'a> System<'a> for InventorySystem {
                 for tile in map.revealed_tiles.iter_mut() {
                     *tile = true;
                 }
-                logbook.entries.push(format!("The darkness lifts, and you become more aware of everything around you."));
+                logbook.entries.push(format!(
+                    "The darkness lifts, and you become more aware of everything around you."
+                ));
             }
 
             if !has_effect {
-                logbook.entries.push(format!("You consume the {}, but nothing happens.", item_name.name));
+                logbook.entries.push(format!(
+                    "You consume the {}, but nothing happens.",
+                    item_name.name
+                ));
             }
 
             /*
@@ -98,7 +125,10 @@ impl<'a> System<'a> for InventorySystem {
              * If this was the final element in the stack, remove the item entirely.
              */
             if let Some(inventory) = inventories.get_mut(entity) {
-                let item_stack = inventory.items.entry(item_name.name.clone()).or_insert(vec![]);
+                let item_stack = inventory
+                    .items
+                    .entry(item_name.name.clone())
+                    .or_insert(vec![]);
                 item_stack.pop();
                 if item_stack.is_empty() {
                     inventory.items.shift_remove(&item_name.name);

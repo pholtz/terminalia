@@ -9,12 +9,9 @@ use simplelog::{CombinedLogger, Config, WriteLogger};
 use specs::prelude::*;
 
 mod component;
-mod floor;
+mod generate;
 mod input;
-mod map;
-mod rect;
 mod render;
-mod spawn;
 mod system;
 
 use input::menu::handle_menu_key_event;
@@ -33,7 +30,7 @@ use crate::{
         WantsToPickupItem,
     },
     damage_system::DamageSystem,
-    floor::{generate_floor, reset_floor},
+    generate::floor::{generate_floor, reset_floor},
     input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
         main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event,

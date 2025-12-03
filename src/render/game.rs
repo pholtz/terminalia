@@ -1,7 +1,16 @@
-use ratatui::{layout::{Constraint, Direction, Layout}, style::{Color, Style}, text::{Line, Span, Text}, widgets::Paragraph, Frame};
+use ratatui::{
+    Frame,
+    layout::{Constraint, Direction, Layout},
+    style::{Color, Style},
+    text::{Line, Span, Text},
+    widgets::Paragraph,
+};
 use specs::prelude::*;
 
-use crate::{component::{Inventory, Logbook, Position, Renderable, Stats}, map::{xy_idx, Map, TileType, MAX_HEIGHT, MAX_WIDTH}};
+use crate::{
+    component::{Inventory, Logbook, Position, Renderable, Stats},
+    generate::map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, xy_idx},
+};
 
 /**
  * The base render function for the game itself.

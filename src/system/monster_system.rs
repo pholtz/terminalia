@@ -2,7 +2,7 @@ use log::info;
 use rltk::{Point};
 use specs::prelude::*;
 
-use crate::{map::{xy_idx, Map, MAX_WIDTH}, Attack, Logbook, Monster, Position, RunState, Viewshed};
+use crate::{generate::map::{xy_idx, Map, MAX_WIDTH}, Attack, Logbook, Monster, Position, RunState, Viewshed};
 
 pub struct MonsterSystem {
 

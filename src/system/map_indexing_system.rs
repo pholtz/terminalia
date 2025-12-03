@@ -1,6 +1,6 @@
 use specs::prelude::*;
 
-use crate::{map::{xy_idx, Map}, BlocksTile, Position};
+use crate::{generate::map::{xy_idx, Map}, BlocksTile, Position};
 
 pub struct MapIndexingSystem {}
 

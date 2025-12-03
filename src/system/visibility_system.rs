@@ -1,7 +1,7 @@
 use rltk::{field_of_view, Point};
 use specs::prelude::*;
 
-use crate::{map::{xy_idx, Map}, Logbook, Player, Position, Viewshed};
+use crate::{generate::map::{xy_idx, Map}, Logbook, Player, Position, Viewshed};
 
 pub struct VisibilitySystem {
 

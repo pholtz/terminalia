@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::{floor::generate_floor, reinitialize_world, App, RootScreen};
+use crate::{generate::floor::generate_floor, reinitialize_world, App, RootScreen};
 
 pub fn handle_menu_key_event(app: &mut App, key_event: KeyEvent) -> bool {
     match key_event.code {

@@ -1,7 +1,11 @@
 use crate::{
-    component::InBackpack, map::{Map, MAX_ITEMS, MAX_MONSTERS}, spawn::{
-        spawn_dagger, spawn_monster_goblin, spawn_monster_rat, spawn_monster_snake, spawn_player, spawn_potion_health, spawn_scroll_magic_mapping
-    }, Logbook, Player, Position, RunState
+    Logbook, Player, Position, RunState,
+    component::InBackpack,
+    generate::map::{MAX_ITEMS, MAX_MONSTERS, Map},
+    generate::spawn::{
+        spawn_dagger, spawn_monster_goblin, spawn_monster_rat, spawn_monster_snake, spawn_player,
+        spawn_potion_health, spawn_scroll_magic_mapping,
+    },
 };
 use log::warn;
 use rltk::{Point, RandomNumberGenerator};
