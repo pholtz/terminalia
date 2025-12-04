@@ -32,23 +32,6 @@ pub struct Map {
     pub height: i32,
 }
 
-/**
- * Given a position tuple, returns the index offset of that position
- * using the single array structured map.
- */
-pub fn xy_idx(x: i32, y: i32) -> usize {
-    (y as usize * MAX_WIDTH as usize) + x as usize
-}
-
-/**
- * The reverse of the `xy_idx()` function above.
- */
-pub fn idx_xy(idx: usize) -> (i32, i32) {
-    let x = (idx % (MAX_WIDTH as usize)) as i32;
-    let y = (idx / (MAX_WIDTH as usize)) as i32;
-    (x, y)
-}
-
 impl Map {
     /**
      * Mutates the tiles of the given map to have floors
@@ -231,4 +214,21 @@ impl Algorithm2D for Map {
     fn dimensions(&self) -> Point {
         Point::new(self.width, self.height)
     }
+}
+
+/**
+ * Given a position tuple, returns the index offset of that position
+ * using the single array structured map.
+ */
+pub fn xy_idx(x: i32, y: i32) -> usize {
+    (y as usize * MAX_WIDTH as usize) + x as usize
+}
+
+/**
+ * The reverse of the `xy_idx()` function above.
+ */
+pub fn idx_xy(idx: usize) -> (i32, i32) {
+    let x = (idx % (MAX_WIDTH as usize)) as i32;
+    let y = (idx / (MAX_WIDTH as usize)) as i32;
+    (x, y)
 }

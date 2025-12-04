@@ -1,13 +1,9 @@
 use crate::{
-    Logbook, Player, Position, RunState,
-    component::InBackpack,
-    generate::map::{MAX_ITEMS, MAX_MONSTERS, Map},
-    generate::spawn::{
-        spawn_dagger, spawn_monster_goblin, spawn_monster_rat, spawn_monster_snake, spawn_player,
-        spawn_potion_health, spawn_scroll_magic_mapping,
-    },
+    component::InBackpack, generate::{
+        map::Map,
+        spawn::{spawn_player, spawn_weighted_item, spawn_weighted_monster},
+    }, Logbook, Player, Position, RunState
 };
-use log::warn;
 use rltk::{Point, RandomNumberGenerator};
 use specs::prelude::*;
 
@@ -65,42 +61,9 @@ pub fn generate_floor(seed: u64, floor_index: u8, world: &mut World) {
         }
     }
 
-    // Spawn monsters
-    for (index, room) in map.rooms.iter().skip(1).enumerate() {
-        if index > (MAX_MONSTERS as usize) {
-            break;
-        }
-        let position = Position {
-            x: room.center().0,
-            y: room.center().1,
-        };
-        match rng.roll_dice(1, 3) {
-            1 => spawn_monster_rat(world, position),
-            2 => spawn_monster_snake(world, position),
-            3 => spawn_monster_goblin(world, position),
-            _ => warn!(
-                "generate_floor received unexpected random monster spawn diceroll, skipping..."
-            ),
-        };
-    }
-
-    // Spawn item
-    for (index, room) in map.rooms.iter().skip(1).enumerate() {
-        if index > (MAX_ITEMS as usize) {
-            break;
-        }
-        let width = room.x2 - room.x1;
-        let height = room.y2 - room.y1;
-        let item_x = room.x1 + rng.roll_dice(1, width - 1);
-        let item_y = room.y1 + rng.roll_dice(1, height - 1);
-        match rng.roll_dice(1, 3) {
-            1 => spawn_potion_health(world, item_x, item_y),
-            2 => spawn_scroll_magic_mapping(world, item_x, item_y),
-            3 => spawn_dagger(world, item_x, item_y),
-            _ => {
-                warn!("generate_floor received unexpected random item spawn diceroll, skipping...")
-            }
-        }
+    for (_index, room) in map.rooms.iter().skip(1).enumerate() {
+        spawn_weighted_item(world, seed, floor_index, room);
+        spawn_weighted_monster(world, seed, floor_index, room);
     }
 
     world.insert(RunState::AwaitingInput);

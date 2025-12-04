@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::{generate::floor::generate_floor, reinitialize_systems, reinitialize_world, App, RootScreen};
+use crate::{generate::generator::generate_floor, reinitialize_systems, reinitialize_world, App, RootScreen};
 
 pub fn handle_game_over_key_event(app: &mut App, key_event: KeyEvent) -> bool {
     match key_event.code {

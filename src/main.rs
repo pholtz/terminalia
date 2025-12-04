@@ -3,7 +3,6 @@ use std::{fs::File, io, time::Duration};
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use log::LevelFilter;
-use rand::Rng;
 use ratatui::{DefaultTerminal, Frame};
 use simplelog::{CombinedLogger, Config, WriteLogger};
 use specs::prelude::*;
@@ -30,7 +29,7 @@ use crate::{
         WantsToPickupItem,
     },
     damage_system::DamageSystem,
-    generate::floor::{generate_floor, reset_floor},
+    generate::generator::{generate_floor, reset_floor},
     input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
         main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event,
@@ -255,6 +254,9 @@ fn reinitialize_systems(world: &mut World) -> Dispatcher<'static, 'static> {
     return dispatcher;
 }
 
+/// Initializes ratatui, specs, and the core game struct.
+/// Then, hands off control to the game loop for rendering.
+/// Upon cleanly exiting the game, restores the terminal.
 fn main() -> Result<()> {
     color_eyre::install().expect("ahhhh");
 
@@ -267,7 +269,6 @@ fn main() -> Result<()> {
 
     let mut world = reinitialize_world();
     let dispatcher = reinitialize_systems(&mut world);
-    generate_floor(rand::rng().random(), 0, &mut world);
 
     let mut terminal = ratatui::init();
     let app_result = App {
