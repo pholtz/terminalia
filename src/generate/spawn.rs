@@ -5,7 +5,7 @@ use rltk::{RandomNumberGenerator};
 use specs::prelude::*;
 
 use crate::{component::{
-    BlocksTile, Inventory, Item, MagicMapper, Monster, Name, Player, Position, Potion, Renderable, Stats, Viewshed
+    BlocksTile, EquipmentSlot, Equippable, Inventory, Item, MagicMapper, Monster, Name, Player, Position, Potion, Renderable, Stats, Viewshed
 }, generate::rect::Rect};
 
 pub const ITEM_OFFSET: u64 = 64;
@@ -18,10 +18,12 @@ pub fn spawn_weighted_item(ecs: &mut World, seed: u64, floor_index: u8, room: &R
     let height = room.y2 - room.y1;
     let x = room.x1 + rng.roll_dice(1, width - 1);
     let y = room.y1 + rng.roll_dice(1, height - 1);
+    let pos = Position { x: x, y: y };
     match rng.roll_dice(1, 100) {
         1..=25 => spawn_potion_health(ecs, x, y),
         26..=30 => spawn_scroll_magic_mapping(ecs, x, y),
         31..=40 => spawn_dagger(ecs, x, y),
+        41..=100 => spawn_shield(ecs, pos),
         other => info!("Rolled {}", other)
     }
 }
@@ -121,12 +123,28 @@ pub fn spawn_dagger(ecs: &mut World, x: i32, y: i32) {
             bg: Color::Black,
             index: 2,
         })
-        .with(Name {
-            name: "Dagger".to_string(),
+        .with(Name { name: "Dagger".to_string() })
+        .with(Item { description: "A short, pointy blade made for quick cuts.".to_string() })
+        .with(Equippable { slot: EquipmentSlot::Weapon })
+        .build();
+}
+
+pub fn spawn_shield(ecs: &mut World, pos: Position) {
+    ecs.create_entity()
+        .with(pos)
+        .with(Renderable {
+            glyph: '0',
+            fg: Color::Gray,
+            bg: Color::Black,
+            index: 2
         })
-        .with(Item {
-            description: "A short, pointy blade made for quick cuts.".to_string()
+        .with(Name { name: "Battered Shield".to_string() })
+        .with(Item { description:
+            "A medium-sized, circular shield with some sizeable dents.
+            Seems well made, though."
+            .to_string()
         })
+        .with(Equippable { slot: EquipmentSlot::Shield })
         .build();
 }
 

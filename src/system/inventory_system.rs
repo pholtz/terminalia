@@ -2,8 +2,7 @@ use specs::{Entities, Entity, Join, ReadExpect, ReadStorage, System, WriteExpect
 
 use crate::{
     component::{
-        InBackpack, Inventory, Logbook, MagicMapper, Name, Position, Potion, Stats,
-        WantsToConsumeItem, WantsToPickupItem,
+        Equippable, Equipped, InBackpack, Inventory, Logbook, MagicMapper, Name, Position, Potion, Stats, WantsToConsumeItem, WantsToPickupItem
     },
     generate::map::Map,
 };
@@ -25,6 +24,8 @@ impl<'a> System<'a> for InventorySystem {
         WriteExpect<'a, Map>,
         ReadStorage<'a, Potion>,
         ReadStorage<'a, MagicMapper>,
+        ReadStorage<'a, Equippable>,
+        WriteStorage<'a, Equipped>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
@@ -42,6 +43,8 @@ impl<'a> System<'a> for InventorySystem {
             mut map,
             potions,
             magic_mappers,
+            equippables,
+            mut equipment,
         ) = data;
 
         /*
@@ -90,10 +93,12 @@ impl<'a> System<'a> for InventorySystem {
                 .get(consume.item)
                 .expect("Unable to access name for consumed item");
             let mut has_effect = false;
+            let mut should_consume = false;
 
             // Someone wants to drink a potion...
             if let Some(potion) = potions.get(consume.item) {
                 has_effect = true;
+                should_consume = true;
                 stat.hp = i32::min(stat.max_hp, stat.hp + potion.heal_amount);
                 if entity == *player_entity {
                     logbook.entries.push(format!(
@@ -103,6 +108,33 @@ impl<'a> System<'a> for InventorySystem {
                 }
             }
 
+            // Someone wants to equip an item...
+            if let Some(equippable) = equippables.get(consume.item) {
+                has_effect = true;
+
+                let mut unequip: Vec<Entity> = Vec::new();
+                for (item_entity, equipment, name) in (&entities, &equipment, &names).join() {
+                    if equipment.owner == entity && equipment.slot == equippable.slot {
+                        unequip.push(item_entity);
+                        logbook.entries.push(format!(
+                            "You unequp the {} from the {:?} slot.",
+                            name.name, equipment.slot,
+                        ));
+                    }
+                }
+                unequip.iter().for_each(|item| { equipment.remove(*item).expect("Unable to unequip item"); });
+
+                equipment.insert(consume.item, Equipped { slot: equippable.slot, owner: entity })
+                    .expect("Unable to equip desired item");
+                if entity == *player_entity {
+                    logbook.entries.push(format!(
+                        "You equip the {} to the {:?} slot.",
+                        item_name.name, equippable.slot
+                    ));
+                }
+            }
+
+            // Someone wants to use a magic mapper scroll...
             if magic_mappers.contains(consume.item) {
                 has_effect = true;
                 for tile in map.revealed_tiles.iter_mut() {
@@ -124,16 +156,18 @@ impl<'a> System<'a> for InventorySystem {
              * Decrement the item stack since it was used.
              * If this was the final element in the stack, remove the item entirely.
              */
-            if let Some(inventory) = inventories.get_mut(entity) {
-                let item_stack = inventory
-                    .items
-                    .entry(item_name.name.clone())
-                    .or_insert(vec![]);
-                item_stack.pop();
-                if item_stack.is_empty() {
-                    inventory.items.shift_remove(&item_name.name);
-                    if inventory.index > 0 {
-                        inventory.index -= 1;
+            if should_consume {
+                if let Some(inventory) = inventories.get_mut(entity) {
+                    let item_stack = inventory
+                        .items
+                        .entry(item_name.name.clone())
+                        .or_insert(vec![]);
+                    item_stack.pop();
+                    if item_stack.is_empty() {
+                        inventory.items.shift_remove(&item_name.name);
+                        if inventory.index > 0 {
+                            inventory.index -= 1;
+                        }
                     }
                 }
             }

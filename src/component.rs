@@ -69,6 +69,27 @@ pub struct Potion {
     pub heal_amount: i32,
 }
 
+#[derive(PartialEq, Copy, Clone, Debug)]
+pub enum EquipmentSlot {
+    Weapon,
+    Shield,
+    Head,
+    Chest,
+    Arms,
+    Legs,
+}
+
+#[derive(Component, Debug)]
+pub struct Equippable {
+    pub slot: EquipmentSlot
+}
+
+#[derive(Component, Debug)]
+pub struct Equipped {
+    pub slot: EquipmentSlot,
+    pub owner: Entity,
+}
+
 #[derive(Component, Debug)]
 pub struct MagicMapper {}
 
