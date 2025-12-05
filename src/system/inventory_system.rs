@@ -124,13 +124,21 @@ impl<'a> System<'a> for InventorySystem {
                 }
                 unequip.iter().for_each(|item| { equipment.remove(*item).expect("Unable to unequip item"); });
 
-                equipment.insert(consume.item, Equipped { slot: equippable.slot, owner: entity })
-                    .expect("Unable to equip desired item");
-                if entity == *player_entity {
-                    logbook.entries.push(format!(
-                        "You equip the {} to the {:?} slot.",
-                        item_name.name, equippable.slot
-                    ));
+                /*
+                 * If the same item is being used and is already equipped...
+                 * That means the player wants to unequip it, so we should not reequip it
+                 */
+                let unequip_only = unequip.contains(&consume.item);
+
+                if !unequip_only {
+                    equipment.insert(consume.item, Equipped { slot: equippable.slot, owner: entity })
+                        .expect("Unable to equip desired item");
+                    if entity == *player_entity {
+                        logbook.entries.push(format!(
+                            "You equip the {} to the {:?} slot.",
+                            item_name.name, equippable.slot
+                        ));
+                    }
                 }
             }
 

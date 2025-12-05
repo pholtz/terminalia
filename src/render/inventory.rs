@@ -3,7 +3,7 @@ use ratatui::{
 };
 use specs::prelude::*;
 
-use crate::component::{Inventory, Item};
+use crate::component::{Equipped, Inventory, Item};
 
 /**
  * This render function fires when the player is ingame and viewing their inventory.
@@ -15,6 +15,7 @@ pub fn render_inventory(ecs: &mut World, frame: &mut Frame) {
     let player_entity = ecs.fetch::<Entity>();
     let inventories = ecs.read_storage::<Inventory>();
     let items = ecs.read_storage::<Item>();
+    let equipment = ecs.read_storage::<Equipped>();
 
     let inventory = inventories
         .get(*player_entity)
@@ -26,9 +27,12 @@ pub fn render_inventory(ecs: &mut World, frame: &mut Frame) {
      */
     let mut inventory_list = Vec::new();
     for (index, (key, value)) in inventory.items.iter().enumerate() {
+        let item = value.first().expect("Unable to retrieve inventory item entity");
+        let equip_label = if equipment.contains(*item) { "(equipped)" } else { "" };
+
         let mut line = vec![
             "".into(),
-            format!("{} x{}", key, value.len()).into(),
+            format!("{} x{} {}", key, value.len(), equip_label).into(),
             "".into(),
         ];
         if index == inventory.index {

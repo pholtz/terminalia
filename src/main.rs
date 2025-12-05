@@ -24,7 +24,7 @@ use system::{
 
 use crate::{
     component::{
-        Attack, BlocksTile, Damage, Equippable, Equipped, InBackpack, Inventory, Item, Logbook, MagicMapper, Monster, Name, Player, Position, Potion, Renderable, Stats, Viewshed, WantsToConsumeItem, WantsToPickupItem
+        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, InBackpack, Inventory, Item, Logbook, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, Renderable, Stats, Viewshed, WantsToConsumeItem, WantsToPickupItem
     },
     damage_system::DamageSystem,
     generate::generator::{generate_floor, reset_floor},
@@ -81,7 +81,7 @@ pub struct App {
     root_screen: RootScreen,
     screen: Screen,
     menu_index: u8,
-    floor_index: u8,
+    floor_index: u32,
     exit: bool,
 }
 
@@ -230,6 +230,8 @@ fn reinitialize_world() -> World {
     world.register::<WantsToConsumeItem>();
     world.register::<Equippable>();
     world.register::<Equipped>();
+    world.register::<MeleeWeapon>();
+    world.register::<Armor>();
     return world;
 }
 

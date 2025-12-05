@@ -20,7 +20,7 @@ use crate::{
  *
  * Game objects themselves should be derived from ecs.
  */
-pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u8) {
+pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
     /*
      * Create the base map lines and spans to render the main game split
      */

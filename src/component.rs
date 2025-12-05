@@ -91,6 +91,16 @@ pub struct Equipped {
 }
 
 #[derive(Component, Debug)]
+pub struct MeleeWeapon {
+    pub damage: i32,
+}
+
+#[derive(Component, Debug)]
+pub struct Armor {
+    pub defense: i32,
+}
+
+#[derive(Component, Debug)]
 pub struct MagicMapper {}
 
 #[derive(Component, Debug)]

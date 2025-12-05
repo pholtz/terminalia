@@ -1,46 +1,61 @@
 use indexmap::IndexMap;
-use log::info;
 use ratatui::style::Color;
 use rltk::{RandomNumberGenerator};
-use specs::prelude::*;
+use specs::{prelude::*, shred::FetchMut};
 
 use crate::{component::{
-    BlocksTile, EquipmentSlot, Equippable, Inventory, Item, MagicMapper, Monster, Name, Player, Position, Potion, Renderable, Stats, Viewshed
-}, generate::rect::Rect};
-
-pub const ITEM_OFFSET: u64 = 64;
-pub const MONSTER_OFFSET: u64 = 128;
+    Armor, BlocksTile, EquipmentSlot, Equippable, Inventory, Item, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, Renderable, Stats, Viewshed
+}, generate::{random_table::RandomTable, rect::Rect}};
 
 /// Spawns a weighted item based on the current floor and an internal spawn table.
-pub fn spawn_weighted_item(ecs: &mut World, seed: u64, floor_index: u8, room: &Rect) {
-    let mut rng = RandomNumberGenerator::seeded(seed + (floor_index as u64) + ITEM_OFFSET);
-    let width = room.x2 - room.x1;
-    let height = room.y2 - room.y1;
-    let x = room.x1 + rng.roll_dice(1, width - 1);
-    let y = room.y1 + rng.roll_dice(1, height - 1);
-    let pos = Position { x: x, y: y };
-    match rng.roll_dice(1, 100) {
-        1..=25 => spawn_potion_health(ecs, x, y),
-        26..=30 => spawn_scroll_magic_mapping(ecs, x, y),
-        31..=40 => spawn_dagger(ecs, x, y),
-        41..=100 => spawn_shield(ecs, pos),
-        other => info!("Rolled {}", other)
+pub fn spawn_weighted_item(ecs: &mut World, floor_index: u32, room: &Rect) {
+    let (pos, spawn): (Position, String) = {
+        let mut rng = ecs.fetch_mut::<RandomNumberGenerator>();
+        let width = room.x2 - room.x1;
+        let height = room.y2 - room.y1;
+        let x = room.x1 + rng.roll_dice(1, width - 1);
+        let y = room.y1 + rng.roll_dice(1, height - 1);
+        let pos = Position { x: x, y: y };
+        let item_spawn_table = RandomTable::new()
+            .add("Health Potion", 25)
+            .add("Magic Mapping Scroll", 5)
+            .add("Dagger", 4 + floor_index as i32)
+            .add("Battered Shield", 6 + floor_index as i32);
+
+        (pos, item_spawn_table.roll(&mut rng))
+    };
+
+    match spawn.as_ref() {
+        "Health Potion" => spawn_potion_health(ecs, pos),
+        "Magic Mapping Scroll" => spawn_scroll_magic_mapping(ecs, pos),
+        "Dagger" => spawn_dagger(ecs, pos),
+        "Battered Shield" => spawn_shield(ecs, pos),
+        _ => {},
     }
 }
 
 /// Spawns a weighted monster based on the current floor and internal spawn table.
-pub fn spawn_weighted_monster(ecs: &mut World, seed: u64, floor_index: u8, room: &Rect) {
-    let mut rng = RandomNumberGenerator::seeded(seed + (floor_index as u64) + MONSTER_OFFSET);
-    let width = room.x2 - room.x1;
-    let height = room.y2 - room.y1;
-    let x = room.x1 + rng.roll_dice(1, width - 1);
-    let y = room.y1 + rng.roll_dice(1, height - 1);
-    let pos = Position { x: x, y: y };
-    match rng.roll_dice(1, 100) {
-        1..=25 => spawn_monster_rat(ecs, pos),
-        26..=50 => spawn_monster_snake(ecs, pos),
-        51..=60 => spawn_monster_goblin(ecs, pos),
-        _ => ()
+pub fn spawn_weighted_monster(ecs: &mut World, floor_index: u32, room: &Rect) {
+    let (pos, spawn): (Position, String) = {
+        let mut rng = ecs.fetch_mut::<RandomNumberGenerator>();
+        let width = room.x2 - room.x1;
+        let height = room.y2 - room.y1;
+        let x = room.x1 + rng.roll_dice(1, width - 1);
+        let y = room.y1 + rng.roll_dice(1, height - 1);
+        let pos = Position { x: x, y: y };
+        let monster_spawn_table = RandomTable::new()
+            .add("Rat", 10)
+            .add("Snake", 8)
+            .add("Goblin", 1 + floor_index as i32);
+
+        (pos, monster_spawn_table.roll(&mut rng))
+    };
+
+    match spawn.as_ref() {
+        "Rat" => spawn_monster_rat(ecs, pos),
+        "Snake" => spawn_monster_snake(ecs, pos),
+        "Goblin" => spawn_monster_goblin(ecs, pos),
+        _ => {},
     }
 }
 
@@ -76,9 +91,9 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
         .build();
 }
 
-pub fn spawn_potion_health(ecs: &mut World, x: i32, y: i32) {
+pub fn spawn_potion_health(ecs: &mut World, pos: Position) {
     ecs.create_entity()
-        .with(Position { x: x, y: y })
+        .with(pos)
         .with(Renderable {
             glyph: 'i',
             fg: Color::Cyan,
@@ -95,9 +110,9 @@ pub fn spawn_potion_health(ecs: &mut World, x: i32, y: i32) {
         .build();
 }
 
-pub fn spawn_scroll_magic_mapping(ecs: &mut World, x: i32, y: i32) {
+pub fn spawn_scroll_magic_mapping(ecs: &mut World, pos: Position) {
     ecs.create_entity()
-        .with(Position { x: x, y: y })
+        .with(pos)
         .with(Renderable {
             glyph: ']',
             fg: Color::LightMagenta,
@@ -114,9 +129,9 @@ pub fn spawn_scroll_magic_mapping(ecs: &mut World, x: i32, y: i32) {
         .build();
 }
 
-pub fn spawn_dagger(ecs: &mut World, x: i32, y: i32) {
+pub fn spawn_dagger(ecs: &mut World, pos: Position) {
     ecs.create_entity()
-        .with(Position { x: x, y: y })
+        .with(pos)
         .with(Renderable {
             glyph: '/',
             fg: Color::Gray,
@@ -126,6 +141,7 @@ pub fn spawn_dagger(ecs: &mut World, x: i32, y: i32) {
         .with(Name { name: "Dagger".to_string() })
         .with(Item { description: "A short, pointy blade made for quick cuts.".to_string() })
         .with(Equippable { slot: EquipmentSlot::Weapon })
+        .with(MeleeWeapon { damage: 2 })
         .build();
 }
 
@@ -145,6 +161,7 @@ pub fn spawn_shield(ecs: &mut World, pos: Position) {
             .to_string()
         })
         .with(Equippable { slot: EquipmentSlot::Shield })
+        .with(Armor { defense: 1 })
         .build();
 }
 

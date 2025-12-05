@@ -1,7 +1,8 @@
+use std::ops::Deref;
+
 use crate::{
     component::InBackpack, generate::{
-        map::Map,
-        spawn::{spawn_player, spawn_weighted_item, spawn_weighted_monster},
+        map::Map, spawn::{spawn_player, spawn_weighted_item, spawn_weighted_monster}
     }, Logbook, Player, Position, RunState
 };
 use rltk::{Point, RandomNumberGenerator};
@@ -36,17 +37,16 @@ pub fn reset_floor(world: &mut World) {
 }
 
 /// Creates a very simple map and populates it with some very simple monsters.
-pub fn generate_floor(seed: u64, floor_index: u8, world: &mut World) {
+pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
     let mut rng = RandomNumberGenerator::seeded(seed + (floor_index as u64));
-    let map = Map::new_map_dynamic_rooms_and_corridors(&mut rng);
-
-    // Add the player character or fetch them if they already exist
-    let (player_x, player_y) = map.rooms[0].center();
-    let (player, initializing) = if let Some(p) = world.try_fetch::<Entity>() {
-        (*p, false)
+    if let Some(existing_rng) = world.try_fetch::<RandomNumberGenerator>() {
+        rng = existing_rng.deref().clone();
     } else {
-        (spawn_player(world, player_x, player_y), true)
-    };
+        world.insert(rng.clone());
+    }
+
+    let map = Map::new_map_dynamic_rooms_and_corridors(&mut rng);
+    let (player_x, player_y) = map.rooms[0].center();
 
     // Update the player position to ensure that existing entities are relocated
     {
@@ -62,15 +62,20 @@ pub fn generate_floor(seed: u64, floor_index: u8, world: &mut World) {
     }
 
     for (_index, room) in map.rooms.iter().skip(1).enumerate() {
-        spawn_weighted_item(world, seed, floor_index, room);
-        spawn_weighted_monster(world, seed, floor_index, room);
+        spawn_weighted_item(world, floor_index, room);
+        spawn_weighted_monster(world, floor_index, room);
     }
 
     world.insert(RunState::AwaitingInput);
     world.insert(map);
     world.insert(Point::new(player_x, player_y));
-    world.insert(player);
-    if initializing {
+
+    if !world.has_value::<Entity>() {
+        let player = spawn_player(world, player_x, player_y);
+        world.insert(player);
+    }
+
+    if !world.has_value::<Logbook>() {
         world.insert(Logbook {
             entries: vec!["You begin your adventure in a smallish room...".to_string()],
             scroll_offset: 0,

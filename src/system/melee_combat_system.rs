@@ -1,6 +1,9 @@
 use specs::prelude::*;
 
-use crate::{Attack, Damage, Logbook, Name, Stats};
+use crate::{
+    Attack, Damage, Logbook, Name, Stats,
+    component::{Armor, Equipped, MeleeWeapon},
+};
 
 pub struct MeleeCombatSystem {}
 
@@ -12,11 +15,14 @@ impl<'a> System<'a> for MeleeCombatSystem {
         ReadStorage<'a, Stats>,
         WriteStorage<'a, Damage>,
         WriteExpect<'a, Logbook>,
+        ReadStorage<'a, Equipped>,
+        ReadStorage<'a, MeleeWeapon>,
+        ReadStorage<'a, Armor>,
     );
-    
+
     /*
      * Query each attack by the attacker.
-     * 
+     *
      * The target is contained within the Attack entity itself.
      * Before applying any damage, we should make sure that both
      * the attacker and the victim are still alive.
@@ -29,20 +35,50 @@ impl<'a> System<'a> for MeleeCombatSystem {
             stats,
             mut damages,
             mut logbook,
+            equipment,
+            melee_weapons,
+            armor,
         ) = data;
 
-        for (_entity, attack, name, stat) in (&entities, &mut attacks, &names, &stats).join() {
+        for (attacker_entity, attack, name, stat) in
+            (&entities, &mut attacks, &names, &stats).join()
+        {
             if stat.hp > 0 {
+                // attacker's health
                 let target_stats = stats.get(attack.target).unwrap();
+                let target_name = names.get(attack.target).unwrap();
                 if target_stats.hp > 0 {
-                    let target_name = names.get(attack.target).unwrap();
-                    let damage_inflicted = i32::max(0, stat.strength - target_stats.defense);
-                    
+                    // target's health
+
+                    let mut melee_weapon_damage = 0;
+                    for (equipped, melee_weapon) in (&equipment, &melee_weapons).join() {
+                        if equipped.owner == attacker_entity {
+                            melee_weapon_damage = melee_weapon.damage;
+                        }
+                    }
+
+                    let mut armor_defense = 0;
+                    for (equipped, armor) in (&equipment, &armor).join() {
+                        if equipped.owner == attack.target {
+                            armor_defense = armor.defense;
+                        }
+                    }
+
+                    let raw_damage = stat.strength + melee_weapon_damage;
+                    let raw_defense = target_stats.defense + armor_defense;
+                    let damage_inflicted = i32::max(0, raw_damage - raw_defense);
+
                     if damage_inflicted == 0 {
-                        logbook.entries.push(format!("{} is too weak to hurt {}", &name.name, &target_name.name));
+                        logbook.entries.push(format!(
+                            "{} is too weak to hurt {}",
+                            &name.name, &target_name.name
+                        ));
                         continue;
                     }
-                    logbook.entries.push(format!("{} hits {}, inflicting {} damage", &name.name, &target_name.name, damage_inflicted));
+                    logbook.entries.push(format!(
+                        "{} hits {}, inflicting {} damage",
+                        &name.name, &target_name.name, damage_inflicted
+                    ));
                     Damage::new_damage(&mut damages, attack.target, damage_inflicted);
                 }
             }
