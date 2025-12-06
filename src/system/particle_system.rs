@@ -1,6 +1,5 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use log::info;
 use specs::prelude::*;
 
 use crate::component::Lifetime;
@@ -12,13 +11,13 @@ pub struct ParticleSystem {
 impl<'a> System<'a> for ParticleSystem {
     type SystemData = (
         Entities<'a>,
-        WriteStorage<'a, Lifetime>,
+        ReadStorage<'a, Lifetime>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
         let (
             entities,
-            mut lifetimes
+            lifetimes
         ) = data;
 
         let current_ms = SystemTime::now()

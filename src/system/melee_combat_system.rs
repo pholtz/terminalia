@@ -1,6 +1,5 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use log::info;
 use ratatui::style::Color;
 use specs::prelude::*;
 
