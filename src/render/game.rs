@@ -1,7 +1,8 @@
+use color_eyre::owo_colors::OwoColorize;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
-    style::{Color, Style},
+    style::{Color, Style, Stylize},
     text::{Line, Span, Text},
     widgets::Paragraph,
 };
@@ -28,17 +29,21 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
     let mut lines = Vec::new();
     let mut spans = Vec::new();
     for (index, tile) in map.tiles.iter().enumerate() {
+        let mut span: Span;
         if map.revealed_tiles[index] {
-            match tile {
-                TileType::Floor => spans.push(Span::styled(".", Style::default().fg(Color::Gray))),
-                TileType::Wall => spans.push(Span::styled("#", Style::default().fg(Color::Green))),
-                TileType::DownStairs => {
-                    spans.push(Span::styled("目", Style::default().fg(Color::Yellow)))
-                }
+            span = match tile {
+                TileType::Floor => Span::styled(".", Style::default().fg(Color::Gray)),
+                TileType::Wall => Span::styled("#", Style::default().fg(Color::Green)),
+                TileType::DownStairs => Span::styled("目", Style::default().fg(Color::Yellow))
             }
         } else {
-            spans.push(Span::styled(" ", Style::default()));
+            span = Span::styled(" ", Style::default());
         }
+
+        if map.bloodstains.contains(&index) {
+            span = span.bg(Color::Rgb(60, 0, 0));
+        }
+        spans.push(span);
 
         if (index + 1) % (MAX_WIDTH as usize) == 0 {
             lines.push(Line::from(spans));
@@ -49,6 +54,9 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
     /*
      * Overwrite base map spans with any renderable characters.
      * Sort renderables by index (render order) prior to rendering, lowest first.
+     * 
+     * If the existing span has a background set, we keep that (e.g. bloodstain).
+     * Otherwise, we use the renderable's desired background.
      */
     let positions = ecs.read_storage::<Position>();
     let renderables = ecs.read_storage::<Renderable>();
@@ -56,9 +64,12 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
     renderable_entities.sort_by(|&a, &b| b.1.index.cmp(&a.1.index));
     for (pos, render) in renderable_entities.iter() {
         if map.revealed_tiles[xy_idx(pos.x, pos.y)] {
+            let existing_span = lines[pos.y as usize].spans[pos.x as usize].clone();
             lines[pos.y as usize].spans[pos.x as usize] = Span::styled(
                 render.glyph.to_string(),
-                Style::default().fg(render.fg).bg(render.bg),
+                Style::default()
+                    .fg(render.fg)
+                    .bg(existing_span.style.bg.unwrap_or_else(|| render.bg)),
             );
         }
     }

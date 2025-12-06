@@ -1,23 +1,36 @@
 use specs::prelude::*;
 
-use crate::{Damage, Logbook, Name, Player, Stats};
+use crate::{Damage, Logbook, Name, Player, Stats, component::Position, generate::map::{Map, xy_idx}};
 
 pub struct DamageSystem {}
 
 impl <'a> System<'a> for DamageSystem {
     type SystemData = (
+        Entities<'a>,
         WriteStorage<'a, Stats>,
         WriteStorage<'a, Damage>,
+        ReadStorage<'a, Position>,
+        WriteExpect<'a, Map>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
         let (
+            entities,
             mut stats,
-            mut damage
+            mut damage,
+            positions,
+            mut map,
         ) = data;
 
-        for (stats, damage) in (&mut stats, &damage).join() {
+        for (entity, stats, damage) in (&entities, &mut stats, &damage).join() {
             stats.hp -= damage.amount.iter().sum::<i32>();
+
+            /*
+             * Render bloodstains anywhere damage occurred
+             */
+            if let Some(pos) = positions.get(entity) {
+                map.bloodstains.insert(xy_idx(pos.x, pos.y));
+            }
         }
         damage.clear();
     }

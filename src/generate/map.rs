@@ -1,4 +1,4 @@
-use std::cmp::{min, max};
+use std::{cmp::{max, min}, collections::HashSet};
 
 use log::info;
 use rltk::{Algorithm2D, BaseMap, Point, RandomNumberGenerator};
@@ -27,6 +27,7 @@ pub struct Map {
     pub tile_content: Vec<Vec<Entity>>,
     pub revealed_tiles: Vec<bool>,
     pub blocked_tiles: Vec<bool>,
+    pub bloodstains: HashSet<usize>,
     pub rooms: Vec<Rect>,
     pub width: i32,
     pub height: i32,
@@ -87,6 +88,7 @@ impl Map {
             tile_content: vec![Vec::new(); (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
             revealed_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
             blocked_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
+            bloodstains: HashSet::new(),
             rooms: Vec::new(),
             width: MAX_WIDTH,
             height: MAX_HEIGHT,
@@ -123,61 +125,6 @@ impl Map {
         let (stair_x, stair_y) = map.rooms[map.rooms.len() - 1].center();
         map.tiles[xy_idx(stair_x, stair_y)] = TileType::DownStairs;
 
-        return map;
-    }
-    
-    pub fn new_map_static_rooms_and_corridors() -> Map {
-        let mut map = Map {
-            tiles: vec![TileType::Wall; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
-            tile_content: vec![Vec::new(); (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
-            revealed_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
-            blocked_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
-            rooms: Vec::new(),
-            width: MAX_WIDTH,
-            height: MAX_HEIGHT,
-        };
-        let room1 = Rect::new(20, 15, 10, 15);
-        let room2 = Rect::new(35, 15, 10, 15);
-        map.apply_room_to_map(&room1);
-        map.apply_room_to_map(&room2);
-        map.apply_horizontal_tunnel(25, 40, 23);
-        return map;
-    }
-    
-    pub fn new_map_random_walls() -> Map {
-        let mut map = Map {
-            tiles: vec![TileType::Floor; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
-            tile_content: vec![Vec::new(); (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
-            revealed_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
-            blocked_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
-            rooms: Vec::new(),
-            width: MAX_WIDTH,
-            height: MAX_HEIGHT,
-        };
-    
-        // Make the boundaries walls
-        for x in 0..MAX_WIDTH {
-            map.tiles[xy_idx(x, 0)] = TileType::Wall;
-            map.tiles[xy_idx(x, MAX_HEIGHT - 1)] = TileType::Wall;
-        }
-        for y in 0..MAX_HEIGHT {
-            map.tiles[xy_idx(0, y)] = TileType::Wall;
-            map.tiles[xy_idx(MAX_WIDTH - 1, y)] = TileType::Wall;
-        }
-    
-        // Now we'll randomly splat a bunch of walls. It won't be pretty, but it's a decent illustration.
-        // First, obtain the thread-local RNG:
-        let mut rng = rltk::RandomNumberGenerator::new();
-    
-        for _i in 0..25 {
-            let x = rng.roll_dice(1, MAX_WIDTH - 1);
-            let y = rng.roll_dice(1, MAX_HEIGHT - 1);
-            let idx = xy_idx(x, y);
-            if idx != xy_idx(MAX_WIDTH / 2, MAX_HEIGHT / 2) {
-                map.tiles[idx] = TileType::Wall;
-            }
-        }
-    
         return map;
     }
 }
