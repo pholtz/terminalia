@@ -96,7 +96,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
                     if let Some(pos) = positions.get(attack.target) {
                         entities.build_entity()
                             .with(pos.clone(), &mut positions)
-                            .with(Renderable { glyph: '/', fg: Color::White, bg: Color::Gray, index: 0 }, &mut renderables)
+                            .with(Renderable { glyph: '\\', fg: Color::White, bg: Color::Gray, index: 0 }, &mut renderables)
                             .with(Lifetime {
                                 created_at: SystemTime::now()
                                     .duration_since(UNIX_EPOCH)
