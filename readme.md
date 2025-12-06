@@ -1,4 +1,4 @@
-# Spear
+# Terminalia
 
 A terminal roguelike with dnd style combat and zero metaprogression.
 

@@ -265,7 +265,7 @@ fn main() -> Result<()> {
     CombinedLogger::init(vec![WriteLogger::new(
         LevelFilter::Info,
         Config::default(),
-        File::create("spear.log").unwrap(),
+        File::create("terminalia.log").unwrap(),
     )])
     .unwrap();
 
