@@ -1,8 +1,12 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use log::info;
+use ratatui::style::Color;
 use specs::prelude::*;
 
 use crate::{
     Attack, Damage, Logbook, Name, Stats,
-    component::{Armor, Equipped, MeleeWeapon},
+    component::{Armor, Equipped, Lifetime, MeleeWeapon, Position, Renderable},
 };
 
 pub struct MeleeCombatSystem {}
@@ -18,6 +22,9 @@ impl<'a> System<'a> for MeleeCombatSystem {
         ReadStorage<'a, Equipped>,
         ReadStorage<'a, MeleeWeapon>,
         ReadStorage<'a, Armor>,
+        WriteStorage<'a, Position>,
+        WriteStorage<'a, Renderable>,
+        WriteStorage<'a, Lifetime>,
     );
 
     /*
@@ -38,6 +45,9 @@ impl<'a> System<'a> for MeleeCombatSystem {
             equipment,
             melee_weapons,
             armor,
+            mut positions,
+            mut renderables,
+            mut lifetimes,
         ) = data;
 
         for (attacker_entity, attack, name, stat) in
@@ -80,6 +90,23 @@ impl<'a> System<'a> for MeleeCombatSystem {
                         &name.name, &target_name.name, damage_inflicted
                     ));
                     Damage::new_damage(&mut damages, attack.target, damage_inflicted);
+
+                    /*
+                     * Create combat particle representing an attack animation.
+                     */
+                    if let Some(pos) = positions.get(attack.target) {
+                        entities.build_entity()
+                            .with(pos.clone(), &mut positions)
+                            .with(Renderable { glyph: '/', fg: Color::White, bg: Color::Gray, index: 0 }, &mut renderables)
+                            .with(Lifetime {
+                                created_at: SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .expect("uhhhh")
+                                    .as_millis(),
+                                lifetime_ms: 200,
+                            }, &mut lifetimes)
+                            .build();
+                    }
                 }
             }
         }

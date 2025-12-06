@@ -145,6 +145,7 @@ impl<'a> System<'a> for InventorySystem {
             // Someone wants to use a magic mapper scroll...
             if magic_mappers.contains(consume.item) {
                 has_effect = true;
+                should_consume = true;
                 for tile in map.revealed_tiles.iter_mut() {
                     *tile = true;
                 }

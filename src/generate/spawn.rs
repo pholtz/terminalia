@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use ratatui::style::Color;
 use rltk::{RandomNumberGenerator};
-use specs::{prelude::*, shred::FetchMut};
+use specs::{prelude::*};
 
 use crate::{component::{
     Armor, BlocksTile, EquipmentSlot, Equippable, Inventory, Item, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, Renderable, Stats, Viewshed

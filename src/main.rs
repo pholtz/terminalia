@@ -24,20 +24,13 @@ use system::{
 
 use crate::{
     component::{
-        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, InBackpack, Inventory, Item, Logbook, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, Renderable, Stats, Viewshed, WantsToConsumeItem, WantsToPickupItem
-    },
-    damage_system::DamageSystem,
-    generate::generator::{generate_floor, reset_floor},
-    input::{
+        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, InBackpack, Inventory, Item,
+        Lifetime, Logbook, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion,
+        Renderable, Stats, Viewshed, WantsToConsumeItem, WantsToPickupItem,
+    }, damage_system::DamageSystem, generate::generator::{generate_floor, reset_floor}, input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
         main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event,
-    },
-    inventory_system::InventorySystem,
-    map_indexing_system::MapIndexingSystem,
-    melee_combat_system::MeleeCombatSystem,
-    monster_system::MonsterSystem,
-    render::{game::render_game, log::render_log},
-    visibility_system::VisibilitySystem,
+    }, inventory_system::InventorySystem, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, render::{game::render_game, log::render_log}, system::particle_system::ParticleSystem, visibility_system::VisibilitySystem
 };
 
 #[derive(Debug)]
@@ -232,6 +225,7 @@ fn reinitialize_world() -> World {
     world.register::<Equipped>();
     world.register::<MeleeWeapon>();
     world.register::<Armor>();
+    world.register::<Lifetime>();
     return world;
 }
 
@@ -251,6 +245,7 @@ fn reinitialize_systems(world: &mut World) -> Dispatcher<'static, 'static> {
             &["map_indexing_system"],
         )
         .with(DamageSystem {}, "damage_system", &["melee_combat_system"])
+        .with(ParticleSystem {}, "particle_system", &["melee_combat_system"])
         .build();
     dispatcher.setup(world);
     return dispatcher;

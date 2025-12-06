@@ -75,8 +75,9 @@ pub enum EquipmentSlot {
     Shield,
     Head,
     Chest,
-    Arms,
+    Hands,
     Legs,
+    Feet,
 }
 
 #[derive(Component, Debug)]
@@ -144,4 +145,10 @@ impl Damage {
                 .expect("Unable to insert damage");
         }
     }
+}
+
+#[derive(Component, Debug)]
+pub struct Lifetime {
+    pub created_at: u128,
+    pub lifetime_ms: u128,
 }
