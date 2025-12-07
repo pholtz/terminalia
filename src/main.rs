@@ -3,7 +3,7 @@ use std::{fs::File, io, time::Duration};
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use log::LevelFilter;
-use ratatui::{DefaultTerminal, Frame};
+use ratatui::{DefaultTerminal, Frame, layout::Size};
 use simplelog::{CombinedLogger, Config, WriteLogger};
 use specs::prelude::*;
 
@@ -24,13 +24,11 @@ use system::{
 
 use crate::{
     component::{
-        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, InBackpack, Inventory, Item,
-        Lifetime, Logbook, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion,
-        Renderable, Stats, Viewshed, WantsToConsumeItem, WantsToPickupItem,
+        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Hidden, InBackpack, Inventory, Item, Lifetime, Logbook, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, Renderable, Stats, Triggerable, Viewshed, WantsToConsumeItem, WantsToPickupItem
     }, damage_system::DamageSystem, generate::generator::{generate_floor, reset_floor}, input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
         main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event,
-    }, inventory_system::InventorySystem, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, render::{game::render_game, log::render_log}, system::particle_system::ParticleSystem, visibility_system::VisibilitySystem
+    }, inventory_system::InventorySystem, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, render::{game::render_game, log::render_log}, system::{particle_system::ParticleSystem, trigger_system::TriggerSystem}, visibility_system::VisibilitySystem
 };
 
 #[derive(Debug)]
@@ -63,6 +61,7 @@ pub enum Screen {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RunState {
     AwaitingInput,
+    Examining { index: usize },
     PlayerTurn,
     MonsterTurn,
     Descending,
@@ -73,6 +72,8 @@ pub struct App {
     pub dispatcher: Dispatcher<'static, 'static>,
     root_screen: RootScreen,
     screen: Screen,
+    runstate: RunState,
+    _terminal: Size,
     menu_index: u8,
     floor_index: u32,
     exit: bool,
@@ -99,23 +100,14 @@ impl App {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         terminal.draw(|frame| self.draw(frame))?;
         while !self.exit {
-            let has_eligible_event = self.handle_events()?;
+            let mut next_runstate = self.handle_events()?;
             match self.root_screen {
                 RootScreen::Menu => {}
                 RootScreen::GameOver => {}
                 RootScreen::Main => {
-                    let runstate: RunState;
-                    {
-                        runstate = *self.ecs.read_resource::<RunState>();
-                    }
-
-                    let mut next_runstate = runstate;
-                    match runstate {
-                        RunState::AwaitingInput => {
-                            if has_eligible_event {
-                                next_runstate = RunState::PlayerTurn;
-                            }
-                        }
+                    match self.runstate {
+                        RunState::AwaitingInput => {}
+                        RunState::Examining { index: _index } => {},
                         RunState::PlayerTurn => next_runstate = RunState::MonsterTurn,
                         RunState::MonsterTurn => next_runstate = RunState::AwaitingInput,
                         RunState::Descending => {
@@ -126,7 +118,12 @@ impl App {
                         }
                     }
 
-                    if runstate != next_runstate {
+                    /*
+                     * If runstate and next_runstate diverged, a state change occurred.
+                     * Persist this change to the local struct as well as the ecs resource.
+                     */
+                    if self.runstate != next_runstate {
+                        self.runstate = next_runstate;
                         let mut runstate = self.ecs.write_resource::<RunState>();
                         *runstate = next_runstate;
                     }
@@ -148,18 +145,18 @@ impl App {
     /**
      * Root event handler for all screens.
      */
-    fn handle_events(&mut self) -> io::Result<bool> {
-        let mut is_eligible_event = false;
+    fn handle_events(&mut self) -> io::Result<RunState> {
+        let mut runstate: Option<RunState> = Some(self.runstate.clone());
         if event::poll(Duration::from_millis(0))? {
             match event::read()? {
                 Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                    is_eligible_event = self.handle_key_event(key_event);
+                    runstate = self.handle_key_event(key_event);
                 }
                 _ => {}
             }
-            return Ok(is_eligible_event);
+            return Ok(runstate.unwrap_or(self.runstate));
         }
-        return Ok(false);
+        return Ok(self.runstate);
     }
 
     /**
@@ -169,11 +166,11 @@ impl App {
      * true -> if the event should trigger a state transition (e.g. movement)
      * false -> if the event should not trigger a state transition (e.g. checking inventory)
      */
-    fn handle_key_event(&mut self, key_event: KeyEvent) -> bool {
+    fn handle_key_event(&mut self, key_event: KeyEvent) -> Option<RunState> {
         match self.root_screen {
             RootScreen::Menu => handle_menu_key_event(self, key_event),
             RootScreen::Main => match self.screen {
-                Screen::Explore => handle_main_explore_key_event(self, key_event),
+                Screen::Explore => handle_main_explore_key_event(self, self.runstate, key_event),
                 Screen::Log => handle_main_log_key_event(self, key_event),
                 Screen::Inventory => handle_main_inventory_key_event(self, key_event),
             },
@@ -226,6 +223,8 @@ fn reinitialize_world() -> World {
     world.register::<MeleeWeapon>();
     world.register::<Armor>();
     world.register::<Lifetime>();
+    world.register::<Hidden>();
+    world.register::<Triggerable>();
     return world;
 }
 
@@ -239,6 +238,7 @@ fn reinitialize_systems(world: &mut World) -> Dispatcher<'static, 'static> {
             "map_indexing_system",
             &["monster_system"],
         )
+        .with(TriggerSystem {}, "trigger_system", &["map_indexing_system"])
         .with(
             MeleeCombatSystem {},
             "melee_combat_system",
@@ -273,6 +273,8 @@ fn main() -> Result<()> {
         dispatcher: dispatcher,
         root_screen: RootScreen::Menu,
         screen: Screen::Explore,
+        runstate: RunState::AwaitingInput,
+        _terminal: terminal.size().unwrap_or_default(),
         menu_index: 0,
         floor_index: 0,
         exit: false,

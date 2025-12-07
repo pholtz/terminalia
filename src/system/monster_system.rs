@@ -36,8 +36,8 @@ impl<'a> System<'a> for MonsterSystem {
         ) = data;
 
         match *runstate {
-            RunState::AwaitingInput | RunState::PlayerTurn | RunState::Descending => { return },
             RunState::MonsterTurn => {},
+            _ => { return },
         }
         /*
          * Not sure why we still need this,

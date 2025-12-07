@@ -6,47 +6,84 @@ use std::cmp::{max, min};
 use crate::{
     App, RootScreen, RunState, Screen,
     component::{Attack, Item, Logbook, Player, Position, Stats, WantsToPickupItem},
-    generate::map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, xy_idx},
+    generate::map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, idx_xy, xy_idx},
 };
 
-pub fn handle_main_explore_key_event(app: &mut App, key_event: KeyEvent) -> bool {
+pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_event: KeyEvent) -> Option<RunState> {
     match key_event.code {
         KeyCode::Esc => {
             app.root_screen = RootScreen::Menu;
-            return false;
+            return None;
         }
 
         KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('h') => {
-            try_move_player(-1, 0, &mut app.ecs)
+            match runstate {
+                RunState::AwaitingInput => try_move_player(-1, 0, &mut app.ecs),
+                RunState::Examining { index: _ } => try_move_examine(app, -1, 0),
+                _ => None,
+            }
         }
 
         KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('l') => {
-            try_move_player(1, 0, &mut app.ecs)
+            match runstate {
+                RunState::AwaitingInput => try_move_player(1, 0, &mut app.ecs),
+                RunState::Examining { index: _ } => try_move_examine(app, 1, 0),
+                _ => None,
+            }
         }
 
         KeyCode::Up | KeyCode::Char('w') | KeyCode::Char('k') => {
-            try_move_player(0, -1, &mut app.ecs)
+            match runstate {
+                RunState::AwaitingInput => try_move_player(0, -1, &mut app.ecs),
+                RunState::Examining { index: _ } => try_move_examine(app, 0, -1),
+                _ => None,
+            }
         }
 
         KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('j') => {
-            try_move_player(0, 1, &mut app.ecs)
+            match runstate {
+                RunState::AwaitingInput => try_move_player(0, 1, &mut app.ecs),
+                RunState::Examining { index: _ } => try_move_examine(app, 0, 1),
+                _ => None,
+            }
+        }
+
+        KeyCode::Char('/') => {
+            let ecs = &mut app.ecs;
+            let player = ecs.read_resource::<Entity>();
+            let positions = ecs.read_storage::<Position>();
+            let position = positions.get(*player).expect("Cannot get position for player");
+            return match app.runstate {
+                RunState::Examining { index: _ } => Some(RunState::AwaitingInput),
+                _ => Some(RunState::Examining { index: xy_idx(position.x, position.y) })
+            };
         }
 
         KeyCode::Char('g') => try_get_item(&mut app.ecs),
         KeyCode::Char('i') => {
             app.screen = Screen::Inventory;
-            return false;
+            return None;
         }
         KeyCode::Char('.') => try_next_level(&mut app.ecs),
         KeyCode::Char('q') => {
             app.screen = Screen::Log;
-            return false;
+            return None;
         }
-        _ => false,
+        _ => None,
     }
 }
 
-fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) -> bool {
+fn try_move_examine(app: &mut App, delta_x: i32, delta_y: i32) -> Option<RunState> {
+    match app.runstate {
+        RunState::Examining { index } => {
+            let (x, y) = idx_xy(index);
+            return Some(RunState::Examining { index: xy_idx(x + delta_x, y + delta_y) });
+        },
+        _ => None
+    }
+}
+
+fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) -> Option<RunState> {
     let entities = ecs.entities();
     let mut positions = ecs.write_storage::<Position>();
     let mut players = ecs.write_storage::<Player>();
@@ -69,7 +106,7 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) -> bool {
                     attacks
                         .insert(entity, Attack { target: *target })
                         .expect("Unable to add attack");
-                    return true;
+                    return Some(RunState::PlayerTurn);
                 }
             }
         }
@@ -82,10 +119,10 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) -> bool {
             player_position.y = next_pos_y;
         }
     }
-    return true;
+    return Some(RunState::PlayerTurn);
 }
 
-fn try_get_item(ecs: &mut World) -> bool {
+fn try_get_item(ecs: &mut World) -> Option<RunState> {
     let player_pos = ecs.fetch::<Point>();
     let player_entity = ecs.fetch::<Entity>();
     let entities = ecs.entities();
@@ -117,17 +154,17 @@ fn try_get_item(ecs: &mut World) -> bool {
                 .expect("Unable to insert item pickup into ecs");
         }
     }
-    return true;
+    return Some(RunState::PlayerTurn);
 }
 
-fn try_next_level(ecs: &mut World) -> bool {
+fn try_next_level(ecs: &mut World) -> Option<RunState> {
     let mut runstate = ecs.write_resource::<RunState>();
     let map = ecs.read_resource::<Map>();
     let player_position = ecs.read_resource::<Point>();
     let player_index = xy_idx(player_position.x, player_position.y);
     if map.tiles[player_index] == TileType::DownStairs {
         *runstate = RunState::Descending;
-        return true;
+        return Some(RunState::Descending);
     }
-    return false;
+    return None;
 }

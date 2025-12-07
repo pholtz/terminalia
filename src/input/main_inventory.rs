@@ -1,9 +1,9 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use specs::prelude::*;
 
-use crate::{component::{Inventory, WantsToConsumeItem}, App, Screen};
+use crate::{App, RunState, Screen, component::{Inventory, WantsToConsumeItem}};
 
-pub fn handle_main_inventory_key_event(app: &mut App, key_event: KeyEvent) -> bool {
+pub fn handle_main_inventory_key_event(app: &mut App, key_event: KeyEvent) -> Option<RunState> {
     match key_event.code {
         KeyCode::Up | KeyCode::Char('w') | KeyCode::Char('k') => {
             let player_entity = app.ecs.fetch::<Entity>();
@@ -13,7 +13,7 @@ pub fn handle_main_inventory_key_event(app: &mut App, key_event: KeyEvent) -> bo
                     inventory.index -= 1;
                 }
             }
-            return false;
+            return None;
         }
 
         KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('j') => {
@@ -24,19 +24,19 @@ pub fn handle_main_inventory_key_event(app: &mut App, key_event: KeyEvent) -> bo
                     inventory.index += 1;
                 }
             }
-            return false;
+            return None;
         }
 
         KeyCode::Char('i') | KeyCode::Esc => {
             app.screen = Screen::Explore;
-            return false;
+            return None;
         }
         KeyCode::Enter => {
             try_consume_item(&mut app.ecs);
             app.screen = Screen::Explore;
-            return true;
+            return None;
         }
-        _ => false,
+        _ => None,
     }
 }
 

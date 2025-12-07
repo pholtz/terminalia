@@ -152,3 +152,13 @@ pub struct Lifetime {
     pub created_at: u128,
     pub lifetime_ms: u128,
 }
+
+#[derive(Component, Debug)]
+pub struct Hidden {
+
+}
+
+#[derive(Component, Debug)]
+pub struct Triggerable {
+    pub damage: i32,
+}

@@ -1,9 +1,9 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use rand::Rng;
 
-use crate::{generate::generator::generate_floor, reinitialize_world, App, RootScreen};
+use crate::{App, RootScreen, RunState, generate::generator::generate_floor, reinitialize_world};
 
-pub fn handle_menu_key_event(app: &mut App, key_event: KeyEvent) -> bool {
+pub fn handle_menu_key_event(app: &mut App, key_event: KeyEvent) -> Option<RunState> {
     match key_event.code {
         KeyCode::Esc => app.exit(),
         KeyCode::Up | KeyCode::Char('w') => {
@@ -31,5 +31,5 @@ pub fn handle_menu_key_event(app: &mut App, key_event: KeyEvent) -> bool {
         },
         _ => {}
     }
-    return false
+    return None
 }

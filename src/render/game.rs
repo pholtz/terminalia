@@ -9,8 +9,7 @@ use ratatui::{
 use specs::prelude::*;
 
 use crate::{
-    component::{Inventory, Logbook, Position, Renderable, Stats},
-    generate::map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, xy_idx},
+    RunState, component::{Hidden, Inventory, Logbook, Position, Renderable, Stats}, generate::map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, idx_xy, xy_idx}
 };
 
 /**
@@ -60,9 +59,10 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
      */
     let positions = ecs.read_storage::<Position>();
     let renderables = ecs.read_storage::<Renderable>();
-    let mut renderable_entities = (&positions, &renderables).join().collect::<Vec<_>>();
+    let hidden = ecs.read_storage::<Hidden>();
+    let mut renderable_entities = (&positions, &renderables, !&hidden).join().collect::<Vec<_>>();
     renderable_entities.sort_by(|&a, &b| b.1.index.cmp(&a.1.index));
-    for (pos, render) in renderable_entities.iter() {
+    for (pos, render, _hidden) in renderable_entities.iter() {
         if map.revealed_tiles[xy_idx(pos.x, pos.y)] {
             let existing_span = lines[pos.y as usize].spans[pos.x as usize].clone();
             lines[pos.y as usize].spans[pos.x as usize] = Span::styled(
@@ -75,15 +75,34 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
     }
 
     /*
+     * If the player is in examine mode, overwrite the field being examined.
+     */
+    let runstate = ecs.fetch::<RunState>();
+    match *runstate {
+        RunState::Examining { index } => {
+            let (x, y) = idx_xy(index);
+            let existing_span = lines[y as usize].spans[x as usize].clone();
+            lines[y as usize].spans[x as usize] = Span::styled(
+                existing_span.content,
+                Style::default()
+                    .fg(existing_span.style.fg.unwrap_or(Color::White))
+                    .bg(Color::Cyan)
+            );
+        },
+        _ => {}
+    }
+
+    /*
      * Format the status bar with health, gold, etc.
      */
     let player = ecs.fetch::<Entity>();
     let stats = ecs.read_storage::<Stats>();
     let inventory = ecs.read_storage::<Inventory>();
+    let runstate = ecs.fetch::<RunState>();
     let status_line = match (stats.get(*player), inventory.get(*player)) {
         (Some(stats), Some(inventory)) => format!(
-            "HP: {} / {}  Floor: {}  Gold: {}",
-            stats.hp, stats.max_hp, floor_index, inventory.gold
+            "HP: {} / {}  Floor: {}  Gold: {}  Runstate: {:?}",
+            stats.hp, stats.max_hp, floor_index, inventory.gold, *runstate
         ),
         _ => String::new(),
     };
@@ -92,7 +111,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
      * Fetch and truncate the most recent logbook entries
      */
     let logbook = ecs.fetch::<Logbook>();
-    let recent_entries = logbook.entries.len().saturating_sub(2);
+    let recent_entries = logbook.entries.len().saturating_sub(3);
     let mut serialized_log = String::with_capacity(1024);
     for entry in &logbook.entries[recent_entries..] {
         serialized_log.push_str(entry);

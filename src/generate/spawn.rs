@@ -4,7 +4,7 @@ use rltk::{RandomNumberGenerator};
 use specs::{prelude::*};
 
 use crate::{component::{
-    Armor, BlocksTile, EquipmentSlot, Equippable, Inventory, Item, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, Renderable, Stats, Viewshed
+    Armor, BlocksTile, EquipmentSlot, Equippable, Hidden, Inventory, Item, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, Renderable, Stats, Triggerable, Viewshed
 }, generate::{random_table::RandomTable, rect::Rect}};
 
 /// Spawns a weighted item based on the current floor and an internal spawn table.
@@ -20,7 +20,8 @@ pub fn spawn_weighted_item(ecs: &mut World, floor_index: u32, room: &Rect) {
             .add("Health Potion", 25)
             .add("Magic Mapping Scroll", 5)
             .add("Dagger", 4 + floor_index as i32)
-            .add("Battered Shield", 6 + floor_index as i32);
+            .add("Battered Shield", 6 + floor_index as i32)
+            .add("Basic Trap", 10 + floor_index as i32);
 
         (pos, item_spawn_table.roll(&mut rng))
     };
@@ -30,6 +31,7 @@ pub fn spawn_weighted_item(ecs: &mut World, floor_index: u32, room: &Rect) {
         "Magic Mapping Scroll" => spawn_scroll_magic_mapping(ecs, pos),
         "Dagger" => spawn_dagger(ecs, pos),
         "Battered Shield" => spawn_shield(ecs, pos),
+        "Basic Trap" => spawn_trap_basic(ecs, pos),
         _ => {},
     }
 }
@@ -162,6 +164,21 @@ pub fn spawn_shield(ecs: &mut World, pos: Position) {
         })
         .with(Equippable { slot: EquipmentSlot::Shield })
         .with(Armor { defense: 1 })
+        .build();
+}
+
+pub fn spawn_trap_basic(ecs: &mut World, pos: Position) {
+    ecs.create_entity()
+        .with(pos)
+        .with(Renderable {
+            glyph: '^',
+            fg: Color::Red,
+            bg: Color::Black,
+            index: 2,
+        })
+        .with(Name { name: "Basic Trap".to_string() })
+        .with(Hidden {})
+        .with(Triggerable { damage: 8 })
         .build();
 }
 
