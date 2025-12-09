@@ -1,15 +1,14 @@
-use color_eyre::owo_colors::OwoColorize;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::Paragraph,
+    widgets::{Block, Borders, Paragraph},
 };
 use specs::prelude::*;
 
 use crate::{
-    RunState, component::{Hidden, Inventory, Logbook, Position, Renderable, Stats}, generate::map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, idx_xy, xy_idx}
+    RunState, component::{Hidden, Inventory, Logbook, Name, Position, Renderable, Stats}, generate::map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, idx_xy, xy_idx}
 };
 
 /**
@@ -75,7 +74,8 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
     }
 
     /*
-     * If the player is in examine mode, overwrite the field being examined.
+     * If the player is in examine mode, overwrite the background of the field
+     * being examined with a bright color to indicate that it is selected.
      */
     let runstate = ecs.fetch::<RunState>();
     match *runstate {
@@ -99,35 +99,118 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
     let stats = ecs.read_storage::<Stats>();
     let inventory = ecs.read_storage::<Inventory>();
     let runstate = ecs.fetch::<RunState>();
-    let status_line = match (stats.get(*player), inventory.get(*player)) {
-        (Some(stats), Some(inventory)) => format!(
-            "HP: {} / {}  Floor: {}  Gold: {}  Runstate: {:?}",
-            stats.hp, stats.max_hp, floor_index, inventory.gold, *runstate
-        ),
+    let names = ecs.read_storage::<Name>();
+    let mut player_name: String = "?".to_string();
+    let player_floor = format!("Floor: {}", floor_index);
+    let mut player_hp: String = "".to_string();
+    let mut player_hp_remaining: String = "".to_string();
+    let mut player_hp_total: String = "".to_string();
+    let mut player_mp: String = "".to_string();
+    let mut player_mp_remaining: String = "".to_string();
+    let mut player_mp_total: String = "".to_string();
+    let status_line = match (stats.get(*player), inventory.get(*player), names.get(*player)) {
+        (Some(stats), Some(inventory), Some(name)) => {
+            player_name = name.name.clone();
+            player_hp = format!("HP: {} / {} ", stats.hp, stats.max_hp);
+            let hp_bar_remaining = ((stats.hp as f64 / stats.max_hp as f64) * (25 as f64)).round() as usize;
+            player_hp_remaining = " ".repeat(hp_bar_remaining);
+            player_hp_total = " ".repeat(25 - hp_bar_remaining);
+            player_mp = "MP: 10 / 10 ".to_string();
+            player_mp_remaining = " ".repeat(20);
+            player_mp_total = " ".repeat(5);
+            format!(
+                "HP: {} / {}  Floor: {}  Gold: {}  Runstate: {:?}",
+                stats.hp, stats.max_hp, floor_index, inventory.gold, *runstate
+            )
+        },
         _ => String::new(),
     };
 
     /*
-     * Fetch and truncate the most recent logbook entries
+     * Fetch and truncate the most recent logbook entries,
+     * or the relevant name if in examine mode.
      */
-    let logbook = ecs.fetch::<Logbook>();
-    let recent_entries = logbook.entries.len().saturating_sub(3);
-    let mut serialized_log = String::with_capacity(1024);
-    for entry in &logbook.entries[recent_entries..] {
-        serialized_log.push_str(entry);
-        serialized_log.push('\n');
-    }
+    let text = match *runstate {
+        RunState::Examining { index } => {
+            let mut serialized_examine: String = "".to_string();
+            for entity in map.tile_content.get(index).unwrap_or(&Vec::new()).iter() {
+                if let Some(name) = names.get(*entity) {
+                    serialized_examine = name.name.clone();
+                    break;
+                }
+            }
+            serialized_examine
+        },
+        _ => {
+            let logbook = ecs.fetch::<Logbook>();
+            let recent_entries = logbook.entries.len().saturating_sub(4);
+            let mut serialized_log = String::with_capacity(1024);
+            for (index, entry) in logbook.entries[recent_entries..].iter().enumerate() {
+                serialized_log.push_str(entry);
+                if index < logbook.entries[recent_entries..].len() {
+                    serialized_log.push('\n');
+                }
+            }
+            serialized_log
+        }
+    };
 
-    // Actually render the split view via ratatui
-    let layout = Layout::default()
+    let horizontal_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(vec![
+            Constraint::Length(MAX_WIDTH as u16),
+            Constraint::Max(40),
+        ])
+        .split(frame.area());
+
+    let left_block = Block::default().borders(Borders::NONE);
+    let right_block = Block::default().borders(Borders::NONE);
+    
+    frame.render_widget(left_block.clone(), horizontal_layout[0]);
+    frame.render_widget(right_block.clone(), horizontal_layout[1]);
+
+    let left_inner = left_block.inner(horizontal_layout[0]);
+    let right_inner = right_block.inner(horizontal_layout[1]);
+
+    let left_vertical_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![
             Constraint::Length(MAX_HEIGHT as u16),
-            Constraint::Length(1),
             Constraint::Fill(1),
         ])
-        .split(frame.area());
-    frame.render_widget(Paragraph::new(Text::from(lines)), layout[0]);
-    frame.render_widget(Paragraph::new(Text::from(status_line)), layout[1]);
-    frame.render_widget(Paragraph::new(Text::raw(serialized_log)), layout[2]);
+        .split(left_inner);
+
+    let right_vertical_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![
+            Constraint::Length(6),
+            Constraint::Length(6),
+        ])
+        .split(right_inner);
+
+    frame.render_widget(Paragraph::new(Text::from(lines)), left_vertical_layout[0]);
+    frame.render_widget(
+        Paragraph::new(Text::raw(text)),
+        left_vertical_layout[1]
+    );
+
+    frame.render_widget(
+        Paragraph::new(
+            Text::from(vec![
+                Line::from(player_name),
+                Line::from(Span::styled(player_floor, Style::new().fg(Color::Gray))),
+                Line::from(vec![
+                    Span::styled(player_hp, Style::new().fg(Color::LightRed)),
+                    Span::styled(player_hp_remaining, Style::new().bg(Color::Red)),
+                    Span::styled(player_hp_total, Style::new().bg(Color::Rgb(60, 0, 0))),
+                ]),
+                Line::from(vec![
+                    Span::styled(player_mp, Style::new().fg(Color::Blue)),
+                    Span::styled(player_mp_remaining, Style::new().bg(Color::Blue)),
+                    Span::styled(player_mp_total, Style::new().bg(Color::Rgb(0, 0, 60))),
+                ]),
+            ]))
+            .block(Block::new().borders(Borders::NONE)),
+        right_vertical_layout[0]
+    );
 }
