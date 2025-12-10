@@ -12,8 +12,13 @@ use crate::{
 pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_event: KeyEvent) -> Option<RunState> {
     match key_event.code {
         KeyCode::Esc => {
-            app.root_screen = RootScreen::Menu;
-            return None;
+            match runstate {
+                RunState::Examining { index: _ } => Some(RunState::AwaitingInput),
+                _ => {
+                    app.root_screen = RootScreen::Menu;
+                    None
+                }
+            }
         }
 
         KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('h') => {

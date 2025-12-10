@@ -1,14 +1,16 @@
+use log::info;
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Size},
     style::{Color, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph},
 };
+use rltk::Point;
 use specs::prelude::*;
 
 use crate::{
-    RunState, component::{Hidden, Inventory, Logbook, Name, Position, Renderable, Stats}, generate::map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, idx_xy, xy_idx}
+    RunState, component::{Hidden, Inventory, Item, Logbook, Name, Position, Renderable, Stats}, generate::map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, idx_xy, xy_idx}
 };
 
 /**
@@ -19,34 +21,70 @@ use crate::{
  *
  * Game objects themselves should be derived from ecs.
  */
-pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
+pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, terminal: Size) {
     /*
-     * Create the base map lines and spans to render the main game split
+     * Try to do one large ecs dataset fetch upfront for clarity
      */
     let map = ecs.fetch::<Map>();
-    let mut lines = Vec::new();
-    let mut spans = Vec::new();
-    for (index, tile) in map.tiles.iter().enumerate() {
-        let mut span: Span;
-        if map.revealed_tiles[index] {
-            span = match tile {
-                TileType::Floor => Span::styled(".", Style::default().fg(Color::Gray)),
-                TileType::Wall => Span::styled("#", Style::default().fg(Color::Green)),
-                TileType::DownStairs => Span::styled("目", Style::default().fg(Color::Yellow))
+    let runstate = ecs.fetch::<RunState>();
+    let player_position = ecs.fetch::<Point>();
+    let positions = ecs.read_storage::<Position>();
+    let renderables = ecs.read_storage::<Renderable>();
+    let hidden = ecs.read_storage::<Hidden>();
+    let player = ecs.fetch::<Entity>();
+    let stats = ecs.read_storage::<Stats>();
+    let inventory = ecs.read_storage::<Inventory>();
+    let names = ecs.read_storage::<Name>();
+    let items = ecs.read_storage::<Item>();
+
+    // Define the min (top left), and max (bottom right) of the viewport
+    let center = Point {
+        x: (MAX_WIDTH / 2) as i32,
+        y: (MAX_HEIGHT / 2) as i32,
+    };
+    let map_min = Point {
+        x: player_position.x - center.x,
+        y: player_position.y - center.y,
+    };
+    let map_max = Point {
+        x: map_min.x + MAX_WIDTH as i32,
+        y: map_min.y + MAX_HEIGHT as i32,
+    };
+
+    /*
+     * Create the base map spanlines for the viewport.
+     */
+    let mut lines: Vec<Line> = Vec::new();
+    let mut spans: Vec<Span> = Vec::new();
+    for (_view_y, map_y) in (map_min.y ..= map_max.y).enumerate() {
+        for (_view_x, map_x) in (map_min.x ..= map_max.x).enumerate() {
+            let mut span: Span;
+
+            // Out of bounds on map -- render blanks and avoid any map dereferences
+            if map_x < 0 || map_x > MAX_WIDTH - 1 || map_y < 0 || map_y > MAX_HEIGHT - 1 {
+                span = Span::styled(" ", Style::default());
+                spans.push(span);
+                continue;
             }
-        } else {
-            span = Span::styled(" ", Style::default());
-        }
 
-        if map.bloodstains.contains(&index) {
-            span = span.bg(Color::Rgb(60, 0, 0));
-        }
-        spans.push(span);
+            let map_index = xy_idx(map_x, map_y);
+            if map.revealed_tiles[map_index] {
+                span = match map.tiles[map_index] {
+                    TileType::Floor => Span::styled(".", Style::default().fg(Color::Gray)),
+                    TileType::Wall => Span::styled("#", Style::default().fg(Color::Green)),
+                    TileType::DownStairs => Span::styled("目", Style::default().fg(Color::Yellow))
+                }                
+            } else {
+                span = Span::styled(" ", Style::default());
+            }
 
-        if (index + 1) % (MAX_WIDTH as usize) == 0 {
-            lines.push(Line::from(spans));
-            spans = Vec::new();
+            if map.bloodstains.contains(&map_index) {
+                span = span.bg(Color::Rgb(60, 0, 0));
+            }
+            spans.push(span);
         }
+        lines.push(Line::from(spans));
+        spans = Vec::new();
     }
 
     /*
@@ -56,33 +94,46 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
      * If the existing span has a background set, we keep that (e.g. bloodstain).
      * Otherwise, we use the renderable's desired background.
      */
-    let positions = ecs.read_storage::<Position>();
-    let renderables = ecs.read_storage::<Renderable>();
-    let hidden = ecs.read_storage::<Hidden>();
     let mut renderable_entities = (&positions, &renderables, !&hidden).join().collect::<Vec<_>>();
     renderable_entities.sort_by(|&a, &b| b.1.index.cmp(&a.1.index));
     for (pos, render, _hidden) in renderable_entities.iter() {
-        if map.revealed_tiles[xy_idx(pos.x, pos.y)] {
-            let existing_span = lines[pos.y as usize].spans[pos.x as usize].clone();
-            lines[pos.y as usize].spans[pos.x as usize] = Span::styled(
-                render.glyph.to_string(),
-                Style::default()
-                    .fg(render.fg)
-                    .bg(existing_span.style.bg.unwrap_or_else(|| render.bg)),
-            );
+
+        // Renderable has not yet been revealed by the player
+        if !map.revealed_tiles[xy_idx(pos.x, pos.y)] {
+            continue;
         }
+
+        // Renderable is outside of the current viewport
+        if pos.x < map_min.x || map_max.x < pos.x || pos.y < map_min.y || map_max.y < pos.y {
+            continue;
+        }
+        let view_pos = Position {
+            x: pos.x - map_min.x,
+            y: pos.y - map_min.y,
+        };
+
+        let existing_span = lines[view_pos.y as usize].spans[view_pos.x as usize].clone();
+        lines[view_pos.y as usize].spans[view_pos.x as usize] = Span::styled(
+            render.glyph.to_string(),
+            Style::default()
+                .fg(render.fg)
+                .bg(existing_span.style.bg.unwrap_or_else(|| render.bg)),
+        );
     }
 
     /*
      * If the player is in examine mode, overwrite the background of the field
      * being examined with a bright color to indicate that it is selected.
      */
-    let runstate = ecs.fetch::<RunState>();
     match *runstate {
         RunState::Examining { index } => {
             let (x, y) = idx_xy(index);
-            let existing_span = lines[y as usize].spans[x as usize].clone();
-            lines[y as usize].spans[x as usize] = Span::styled(
+            let view_pos = Position {
+                x: x - map_min.x,
+                y: y - map_min.y,
+            };
+            let existing_span = lines[view_pos.y as usize].spans[view_pos.x as usize].clone();
+            lines[view_pos.y as usize].spans[view_pos.x as usize] = Span::styled(
                 existing_span.content,
                 Style::default()
                     .fg(existing_span.style.fg.unwrap_or(Color::White))
@@ -95,11 +146,6 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
     /*
      * Format the status bar with health, gold, etc.
      */
-    let player = ecs.fetch::<Entity>();
-    let stats = ecs.read_storage::<Stats>();
-    let inventory = ecs.read_storage::<Inventory>();
-    let runstate = ecs.fetch::<RunState>();
-    let names = ecs.read_storage::<Name>();
     let mut player_name: String = "?".to_string();
     let player_floor = format!("Floor: {}", floor_index);
     let mut player_hp: String = "".to_string();
@@ -108,8 +154,8 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
     let mut player_mp: String = "".to_string();
     let mut player_mp_remaining: String = "".to_string();
     let mut player_mp_total: String = "".to_string();
-    let status_line = match (stats.get(*player), inventory.get(*player), names.get(*player)) {
-        (Some(stats), Some(inventory), Some(name)) => {
+    match (stats.get(*player), inventory.get(*player), names.get(*player)) {
+        (Some(stats), Some(_inventory), Some(name)) => {
             player_name = name.name.clone();
             player_hp = format!("HP: {} / {} ", stats.hp, stats.max_hp);
             let hp_bar_remaining = ((stats.hp as f64 / stats.max_hp as f64) * (25 as f64)).round() as usize;
@@ -118,13 +164,9 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
             player_mp = "MP: 10 / 10 ".to_string();
             player_mp_remaining = " ".repeat(20);
             player_mp_total = " ".repeat(5);
-            format!(
-                "HP: {} / {}  Floor: {}  Gold: {}  Runstate: {:?}",
-                stats.hp, stats.max_hp, floor_index, inventory.gold, *runstate
-            )
         },
-        _ => String::new(),
-    };
+        _ => {},
+    }
 
     /*
      * Fetch and truncate the most recent logbook entries,
@@ -136,8 +178,14 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32) {
             for entity in map.tile_content.get(index).unwrap_or(&Vec::new()).iter() {
                 if let Some(name) = names.get(*entity) {
                     serialized_examine = name.name.clone();
-                    break;
                 }
+
+                if let Some(item) = items.get(*entity) {
+                    serialized_examine.push('\n');
+                    serialized_examine.push_str(&item.description);
+                }
+
+                if !serialized_examine.is_empty() { break; }
             }
             serialized_examine
         },

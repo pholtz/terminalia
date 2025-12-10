@@ -73,7 +73,7 @@ pub struct App {
     root_screen: RootScreen,
     screen: Screen,
     runstate: RunState,
-    _terminal: Size,
+    terminal: Size,
     menu_index: u8,
     floor_index: u32,
     exit: bool,
@@ -186,7 +186,7 @@ impl App {
         match self.root_screen {
             RootScreen::Menu => render_menu(frame, self.menu_index),
             RootScreen::Main => match self.screen {
-                Screen::Explore => render_game(&mut self.ecs, frame, self.floor_index),
+                Screen::Explore => render_game(&mut self.ecs, frame, self.floor_index, self.terminal),
                 Screen::Log => render_log(&mut self.ecs, frame),
                 Screen::Inventory => render_inventory(&mut self.ecs, frame),
             },
@@ -274,7 +274,7 @@ fn main() -> Result<()> {
         root_screen: RootScreen::Menu,
         screen: Screen::Explore,
         runstate: RunState::AwaitingInput,
-        _terminal: terminal.size().unwrap_or_default(),
+        terminal: terminal.size().unwrap_or_default(),
         menu_index: 0,
         floor_index: 0,
         exit: false,
