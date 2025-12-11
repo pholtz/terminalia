@@ -6,7 +6,7 @@ use std::cmp::{max, min};
 use crate::{
     App, RootScreen, RunState, Screen,
     component::{Attack, Item, Logbook, Player, Position, Stats, WantsToPickupItem},
-    generate::map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, idx_xy, xy_idx},
+    generate::map::{Map, TileType},
 };
 
 pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_event: KeyEvent) -> Option<RunState> {
@@ -55,12 +55,13 @@ pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_even
 
         KeyCode::Char('/') => {
             let ecs = &mut app.ecs;
+            let map = ecs.fetch::<Map>();
             let player = ecs.read_resource::<Entity>();
             let positions = ecs.read_storage::<Position>();
             let position = positions.get(*player).expect("Cannot get position for player");
             return match app.runstate {
                 RunState::Examining { index: _ } => Some(RunState::AwaitingInput),
-                _ => Some(RunState::Examining { index: xy_idx(position.x, position.y) })
+                _ => Some(RunState::Examining { index: map.xy_idx(position.x, position.y) })
             };
         }
 
@@ -81,8 +82,9 @@ pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_even
 fn try_move_examine(app: &mut App, delta_x: i32, delta_y: i32) -> Option<RunState> {
     match app.runstate {
         RunState::Examining { index } => {
-            let (x, y) = idx_xy(index);
-            return Some(RunState::Examining { index: xy_idx(x + delta_x, y + delta_y) });
+            let map = app.ecs.fetch::<Map>();
+            let (x, y) = map.idx_xy(index);
+            return Some(RunState::Examining { index: map.xy_idx(x + delta_x, y + delta_y) });
         },
         _ => None
     }
@@ -99,9 +101,9 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) -> Option<RunSta
     let mut _logbook = ecs.write_resource::<Logbook>();
 
     for (entity, pos, _player) in (&entities, &mut positions, &mut players).join() {
-        let next_pos_x = min(MAX_WIDTH - 1, max(0, pos.x + delta_x));
-        let next_pos_y = min(MAX_HEIGHT - 1, max(0, pos.y + delta_y));
-        let dest = xy_idx(pos.x + delta_x, pos.y + delta_y);
+        let next_pos_x = min(map.width - 1, max(0, pos.x + delta_x));
+        let next_pos_y = min(map.height - 1, max(0, pos.y + delta_y));
+        let dest = map.xy_idx(pos.x + delta_x, pos.y + delta_y);
 
         for target in map.tile_content[dest].iter() {
             let target_stats = stats.get(*target);
@@ -166,7 +168,7 @@ fn try_next_level(ecs: &mut World) -> Option<RunState> {
     let mut runstate = ecs.write_resource::<RunState>();
     let map = ecs.read_resource::<Map>();
     let player_position = ecs.read_resource::<Point>();
-    let player_index = xy_idx(player_position.x, player_position.y);
+    let player_index = map.xy_idx(player_position.x, player_position.y);
     if map.tiles[player_index] == TileType::DownStairs {
         *runstate = RunState::Descending;
         return Some(RunState::Descending);

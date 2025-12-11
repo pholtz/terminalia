@@ -1,6 +1,6 @@
 use specs::prelude::*;
 
-use crate::{Damage, Logbook, Name, Player, Stats, component::Position, generate::map::{Map, xy_idx}};
+use crate::{Damage, Logbook, Name, Player, Stats, component::Position, generate::map::{Map}};
 
 pub struct DamageSystem {}
 
@@ -29,7 +29,8 @@ impl <'a> System<'a> for DamageSystem {
              * Render bloodstains anywhere damage occurred
              */
             if let Some(pos) = positions.get(entity) {
-                map.bloodstains.insert(xy_idx(pos.x, pos.y));
+                let index = map.xy_idx(pos.x, pos.y);
+                map.bloodstains.insert(index);
             }
         }
         damage.clear();

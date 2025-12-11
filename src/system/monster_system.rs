@@ -1,7 +1,7 @@
 use rltk::{Point};
 use specs::prelude::*;
 
-use crate::{generate::map::{xy_idx, Map, MAX_WIDTH}, Attack, Logbook, Monster, Position, RunState, Viewshed};
+use crate::{generate::map::{Map}, Attack, Logbook, Monster, Position, RunState, Viewshed};
 
 pub struct MonsterSystem {
 
@@ -48,8 +48,8 @@ impl<'a> System<'a> for MonsterSystem {
         for (entity, viewshed, position, _monster) in (&entities, &viewshed, &mut position, &monster).join() {
             if viewshed.visible_tiles.contains(&*player_position) {
                 let path = rltk::a_star_search(
-                    xy_idx(position.x, position.y),
-                    xy_idx(player_position.x, player_position.y),
+                    map.xy_idx(position.x, position.y),
+                    map.xy_idx(player_position.x, player_position.y),
                     &mut *map,
                 );
 
@@ -57,10 +57,11 @@ impl<'a> System<'a> for MonsterSystem {
                  * Move the monster towards the player, if possible
                  */
                 if path.success && path.steps.len() > 1 {
-                    let next_pos_x = path.steps[1] as i32 % MAX_WIDTH;
-                    let next_pos_y = path.steps[1] as i32 / MAX_WIDTH;
+                    let next_pos_x = path.steps[1] as i32 % map.width;
+                    let next_pos_y = path.steps[1] as i32 / map.width;
 
-                    let is_blocked_tile = map.blocked_tiles[xy_idx(next_pos_x, next_pos_y)];
+                    let index = map.xy_idx(next_pos_x, next_pos_y);
+                    let is_blocked_tile = map.blocked_tiles[index];
                     let is_player_tile = next_pos_x == player_position.x && next_pos_y == player_position.y;
                     if !is_blocked_tile && !is_player_tile {
                         position.x = next_pos_x;

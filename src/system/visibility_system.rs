@@ -1,7 +1,7 @@
 use rltk::{Point, RandomNumberGenerator, field_of_view};
 use specs::prelude::*;
 
-use crate::{Logbook, Player, Position, Viewshed, component::{Hidden, Name}, generate::map::{Map, xy_idx}};
+use crate::{Logbook, Player, Position, Viewshed, component::{Hidden, Name}, generate::map::{Map}};
 
 pub struct VisibilitySystem {
 
@@ -50,7 +50,7 @@ impl<'a> System<'a> for VisibilitySystem {
             match player.get(entity) {
                 Some(_) => {
                     for tile in viewshed.visible_tiles.iter() {
-                        let index = xy_idx(tile.x, tile.y);
+                        let index = map.xy_idx(tile.x, tile.y);
                         map.revealed_tiles[index] = true;
 
                         /*

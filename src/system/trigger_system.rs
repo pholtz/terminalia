@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ratatui::style::Color;
 use specs::prelude::*;
 
-use crate::{component::{Damage, Hidden, Lifetime, Logbook, Name, Position, Renderable, Stats, Triggerable}, generate::map::{Map, xy_idx}};
+use crate::{component::{Damage, Hidden, Lifetime, Logbook, Name, Position, Renderable, Stats, Triggerable}, generate::map::{Map}};
 pub struct TriggerSystem {
 
 }
@@ -42,7 +42,7 @@ impl<'a> System<'a> for TriggerSystem {
         let mut entities_to_remove: Vec<Entity> = Vec::new();
 
         for (entity, position, name, _stats) in (&entities, &mut positions, &names, &stats).join() {
-            let index = xy_idx(position.x, position.y);
+            let index = map.xy_idx(position.x, position.y);
             for colocated_entity in map.tile_content[index].iter() {
                 if let Some(trigger) = triggerables.get(*colocated_entity) {
                     let trigger_name = names.get(*colocated_entity).expect("Unable to get name for triggerable");

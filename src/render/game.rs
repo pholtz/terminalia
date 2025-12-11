@@ -1,4 +1,3 @@
-use log::info;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Size},
@@ -10,8 +9,11 @@ use rltk::Point;
 use specs::prelude::*;
 
 use crate::{
-    RunState, component::{Hidden, Inventory, Item, Logbook, Name, Position, Renderable, Stats}, generate::map::{MAX_HEIGHT, MAX_WIDTH, Map, TileType, idx_xy, xy_idx}
+    RunState, component::{Hidden, Inventory, Item, Logbook, Name, Position, Renderable, Stats}, generate::map::{Map, TileType}
 };
+
+pub const VIEW_WIDTH: i32 = 80;
+pub const VIEW_HEIGHT: i32 = 50;
 
 /**
  * The base render function for the game itself.
@@ -21,7 +23,7 @@ use crate::{
  *
  * Game objects themselves should be derived from ecs.
  */
-pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, terminal: Size) {
+pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _terminal: Size) {
     /*
      * Try to do one large ecs dataset fetch upfront for clarity
      */
@@ -39,16 +41,16 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, termina
 
     // Define the min (top left), and max (bottom right) of the viewport
     let center = Point {
-        x: (MAX_WIDTH / 2) as i32,
-        y: (MAX_HEIGHT / 2) as i32,
+        x: (VIEW_WIDTH / 2) as i32,
+        y: (VIEW_HEIGHT / 2) as i32,
     };
     let map_min = Point {
         x: player_position.x - center.x,
         y: player_position.y - center.y,
     };
     let map_max = Point {
-        x: map_min.x + MAX_WIDTH as i32,
-        y: map_min.y + MAX_HEIGHT as i32,
+        x: map_min.x + VIEW_WIDTH as i32,
+        y: map_min.y + VIEW_HEIGHT as i32,
     };
 
     /*
@@ -61,13 +63,13 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, termina
             let mut span: Span;
 
             // Out of bounds on map -- render blanks and avoid any map dereferences
-            if map_x < 0 || map_x > MAX_WIDTH - 1 || map_y < 0 || map_y > MAX_HEIGHT - 1 {
+            if map_x < 0 || map_x > map.width - 1 || map_y < 0 || map_y > map.height - 1 {
                 span = Span::styled(" ", Style::default());
                 spans.push(span);
                 continue;
             }
 
-            let map_index = xy_idx(map_x, map_y);
+            let map_index = map.xy_idx(map_x, map_y);
             if map.revealed_tiles[map_index] {
                 span = match map.tiles[map_index] {
                     TileType::Floor => Span::styled(".", Style::default().fg(Color::Gray)),
@@ -99,7 +101,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, termina
     for (pos, render, _hidden) in renderable_entities.iter() {
 
         // Renderable has not yet been revealed by the player
-        if !map.revealed_tiles[xy_idx(pos.x, pos.y)] {
+        if !map.revealed_tiles[map.xy_idx(pos.x, pos.y)] {
             continue;
         }
 
@@ -127,7 +129,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, termina
      */
     match *runstate {
         RunState::Examining { index } => {
-            let (x, y) = idx_xy(index);
+            let (x, y) = map.idx_xy(index);
             let view_pos = Position {
                 x: x - map_min.x,
                 y: y - map_min.y,
@@ -206,7 +208,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, termina
     let horizontal_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![
-            Constraint::Length(MAX_WIDTH as u16),
+            Constraint::Length(VIEW_WIDTH as u16),
             Constraint::Max(40),
         ])
         .split(frame.area());
@@ -223,7 +225,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, termina
     let left_vertical_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![
-            Constraint::Length(MAX_HEIGHT as u16),
+            Constraint::Length(VIEW_HEIGHT as u16),
             Constraint::Fill(1),
         ])
         .split(left_inner);

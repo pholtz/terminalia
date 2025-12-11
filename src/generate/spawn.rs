@@ -48,6 +48,7 @@ pub fn spawn_weighted_monster(ecs: &mut World, floor_index: u32, room: &Rect) {
         let monster_spawn_table = RandomTable::new()
             .add("Rat", 10)
             .add("Snake", 8)
+            .add("Bat", 8)
             .add("Goblin", 1 + floor_index as i32);
 
         (pos, monster_spawn_table.roll(&mut rng))
@@ -56,6 +57,7 @@ pub fn spawn_weighted_monster(ecs: &mut World, floor_index: u32, room: &Rect) {
     match spawn.as_ref() {
         "Rat" => spawn_monster_rat(ecs, pos),
         "Snake" => spawn_monster_snake(ecs, pos),
+        "Bat" => spawn_monster_bat(ecs, pos),
         "Goblin" => spawn_monster_goblin(ecs, pos),
         _ => {},
     }
@@ -197,7 +199,7 @@ pub fn spawn_monster_rat(ecs: &mut World, pos: Position) {
         })
         .with(Viewshed {
             visible_tiles: Vec::new(),
-            range: 8,
+            range: 6,
         })
         .with(BlocksTile {})
         .with(Stats {
@@ -224,12 +226,37 @@ pub fn spawn_monster_snake(ecs: &mut World, pos: Position) {
         })
         .with(Viewshed {
             visible_tiles: Vec::new(),
-            range: 12,
+            range: 8,
         })
         .with(BlocksTile {})
         .with(Stats {
             max_hp: 8,
             hp: 8,
+            strength: 2,
+            defense: 1,
+        })
+        .build();
+}
+
+pub fn spawn_monster_bat(ecs: &mut World, pos: Position) {
+    ecs.create_entity()
+        .with(pos)
+        .with(Renderable {
+            glyph: 'w',
+            bg: Color::Black,
+            fg: Color::Red,
+            index: 1,
+        })
+        .with(Monster {})
+        .with(Name { name: "bat".to_string() })
+        .with(Viewshed {
+            visible_tiles: Vec::new(),
+            range: 10
+        })
+        .with(BlocksTile {})
+        .with(Stats {
+            max_hp: 10,
+            hp: 10,
             strength: 2,
             defense: 1,
         })

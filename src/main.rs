@@ -3,6 +3,7 @@ use std::{fs::File, io, time::Duration};
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use log::LevelFilter;
+use rand::Rng;
 use ratatui::{DefaultTerminal, Frame, layout::Size};
 use simplelog::{CombinedLogger, Config, WriteLogger};
 use specs::prelude::*;
@@ -24,11 +25,23 @@ use system::{
 
 use crate::{
     component::{
-        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Hidden, InBackpack, Inventory, Item, Lifetime, Logbook, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, Renderable, Stats, Triggerable, Viewshed, WantsToConsumeItem, WantsToPickupItem
-    }, damage_system::DamageSystem, generate::generator::{generate_floor, reset_floor}, input::{
+        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Hidden, InBackpack, Inventory,
+        Item, Lifetime, Logbook, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion,
+        Renderable, Stats, Triggerable, Viewshed, WantsToConsumeItem, WantsToPickupItem,
+    },
+    damage_system::DamageSystem,
+    generate::generator::{generate_floor, reset_floor},
+    input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
         main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event,
-    }, inventory_system::InventorySystem, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, render::{game::render_game, log::render_log}, system::{particle_system::ParticleSystem, trigger_system::TriggerSystem}, visibility_system::VisibilitySystem
+    },
+    inventory_system::InventorySystem,
+    map_indexing_system::MapIndexingSystem,
+    melee_combat_system::MeleeCombatSystem,
+    monster_system::MonsterSystem,
+    render::{game::render_game, log::render_log},
+    system::{particle_system::ParticleSystem, trigger_system::TriggerSystem},
+    visibility_system::VisibilitySystem,
 };
 
 #[derive(Debug)]
@@ -107,13 +120,13 @@ impl App {
                 RootScreen::Main => {
                     match self.runstate {
                         RunState::AwaitingInput => {}
-                        RunState::Examining { index: _index } => {},
+                        RunState::Examining { index: _index } => {}
                         RunState::PlayerTurn => next_runstate = RunState::MonsterTurn,
                         RunState::MonsterTurn => next_runstate = RunState::AwaitingInput,
                         RunState::Descending => {
                             self.floor_index += 1;
                             reset_floor(&mut self.ecs);
-                            generate_floor(0, self.floor_index, &mut self.ecs);
+                            generate_floor(rand::rng().random(), self.floor_index, &mut self.ecs);
                             next_runstate = RunState::AwaitingInput;
                         }
                     }
@@ -186,7 +199,9 @@ impl App {
         match self.root_screen {
             RootScreen::Menu => render_menu(frame, self.menu_index),
             RootScreen::Main => match self.screen {
-                Screen::Explore => render_game(&mut self.ecs, frame, self.floor_index, self.terminal),
+                Screen::Explore => {
+                    render_game(&mut self.ecs, frame, self.floor_index, self.terminal)
+                }
                 Screen::Log => render_log(&mut self.ecs, frame),
                 Screen::Inventory => render_inventory(&mut self.ecs, frame),
             },
@@ -245,7 +260,11 @@ fn reinitialize_systems(world: &mut World) -> Dispatcher<'static, 'static> {
             &["map_indexing_system"],
         )
         .with(DamageSystem {}, "damage_system", &["melee_combat_system"])
-        .with(ParticleSystem {}, "particle_system", &["melee_combat_system"])
+        .with(
+            ParticleSystem {},
+            "particle_system",
+            &["melee_combat_system"],
+        )
         .build();
     dispatcher.setup(world);
     return dispatcher;

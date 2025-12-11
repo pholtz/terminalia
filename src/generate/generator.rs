@@ -45,7 +45,7 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
         world.insert(rng.clone());
     }
 
-    let map = Map::new_map_dynamic_rooms_and_corridors(&mut rng);
+    let map = Map::new_map_dynamic_rooms_and_corridors(&mut rng, 100, 100);
     let (player_x, player_y) = map.rooms[0].center();
 
     // Update the player position to ensure that existing entities are relocated

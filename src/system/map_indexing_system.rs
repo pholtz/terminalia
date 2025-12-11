@@ -1,6 +1,6 @@
 use specs::prelude::*;
 
-use crate::{generate::map::{xy_idx, Map}, BlocksTile, Position};
+use crate::{generate::map::{Map}, BlocksTile, Position};
 
 pub struct MapIndexingSystem {}
 
@@ -26,7 +26,7 @@ impl<'a> System<'a> for MapIndexingSystem {
         map.populate_blocked();
         map.clear_tile_content();
         for (entity, position) in (&entities, &position).join() {
-            let index = xy_idx(position.x, position.y);
+            let index = map.xy_idx(position.x, position.y);
 
             // Keep the `blocked_tiles` index up to date
             let _p: Option<&BlocksTile> = blocks_tile.get(entity);

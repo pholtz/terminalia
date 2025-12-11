@@ -6,10 +6,6 @@ use specs::Entity;
 
 use crate::generate::rect::Rect;
 
-// Map constants
-pub const MAX_WIDTH: i32 = 80;
-pub const MAX_HEIGHT: i32 = 50;
-
 // Room constants
 pub const MIN_SIZE: i32 = 6;
 pub const MAX_SIZE: i32 = 10;
@@ -33,20 +29,38 @@ pub struct Map {
 
 impl Map {
     /**
+     * Given a position tuple, returns the index offset of that position
+     * using the single array structured map.
+     */
+    pub fn xy_idx(& self, x: i32, y: i32) -> usize {
+        (y as usize * self.width as usize) + x as usize
+    }
+
+    /**
+     * The reverse of the `xy_idx()` function above.
+     */
+    pub fn idx_xy(&self, idx: usize) -> (i32, i32) {
+        let x = (idx % (self.width as usize)) as i32;
+        let y = (idx / (self.width as usize)) as i32;
+        (x, y)
+    }
+
+    /**
      * Mutates the tiles of the given map to have floors
      * corresponding to the provided room.
      */
     pub fn apply_room_to_map(&mut self, room: &Rect) {
         for y in (room.y1 + 1) ..= room.y2 {
             for x in (room.x1 + 1) ..= room.x2 {
-                self.tiles[xy_idx(x, y)] = TileType::Floor;
+                let index = self.xy_idx(x, y);
+                self.tiles[index] = TileType::Floor;
             }
         }
     }
     
     fn apply_horizontal_tunnel(&mut self, x1:i32, x2:i32, y:i32) {
         for x in min(x1,x2) ..= max(x1,x2) {
-            let idx = xy_idx(x, y);
+            let idx = self.xy_idx(x, y);
             if idx > 0 && idx < 80*50 {
                 self.tiles[idx as usize] = TileType::Floor;
             }
@@ -55,16 +69,16 @@ impl Map {
     
     fn apply_vertical_tunnel(&mut self, y1:i32, y2:i32, x:i32) {
         for y in min(y1,y2) ..= max(y1,y2) {
-            let idx = xy_idx(x, y);
+            let idx = self.xy_idx(x, y);
             if idx > 0 && idx < 80*50 {
                 self.tiles[idx as usize] = TileType::Floor;
             }
         }
     }
 
-    fn is_exit_valid(&self, x:i32, y:i32) -> bool {
+    fn is_exit_valid(& self, x:i32, y:i32) -> bool {
         if x < 1 || x > self.width-1 || y < 1 || y > self.height-1 { return false; }
-        let idx = xy_idx(x, y);
+        let idx = self.xy_idx(x, y);
         !self.blocked_tiles[idx]
     }
 
@@ -80,16 +94,16 @@ impl Map {
         }
     }
     
-    pub fn new_map_dynamic_rooms_and_corridors(rng: &mut RandomNumberGenerator) -> Map {
+    pub fn new_map_dynamic_rooms_and_corridors(rng: &mut RandomNumberGenerator, width: i32, height: i32) -> Map {
         let mut map = Map {
-            tiles: vec![TileType::Wall; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
-            tile_content: vec![Vec::new(); (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
-            revealed_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
-            blocked_tiles: vec![false; (MAX_WIDTH as usize) * (MAX_HEIGHT as usize)],
+            tiles: vec![TileType::Wall; (width as usize) * (height as usize)],
+            tile_content: vec![Vec::new(); (width as usize) * (height as usize)],
+            revealed_tiles: vec![false; (width as usize) * (height as usize)],
+            blocked_tiles: vec![false; (width as usize) * (height as usize)],
             bloodstains: HashSet::new(),
             rooms: Vec::new(),
-            width: MAX_WIDTH,
-            height: MAX_HEIGHT,
+            width: width,
+            height: height,
         };
     
         for _ in 0..MAX_ROOMS {
@@ -121,7 +135,8 @@ impl Map {
         }
 
         let (stair_x, stair_y) = map.rooms[map.rooms.len() - 1].center();
-        map.tiles[xy_idx(stair_x, stair_y)] = TileType::DownStairs;
+        let index = map.xy_idx(stair_x, stair_y);
+        map.tiles[index] = TileType::DownStairs;
 
         return map;
     }
@@ -159,21 +174,4 @@ impl Algorithm2D for Map {
     fn dimensions(&self) -> Point {
         Point::new(self.width, self.height)
     }
-}
-
-/**
- * Given a position tuple, returns the index offset of that position
- * using the single array structured map.
- */
-pub fn xy_idx(x: i32, y: i32) -> usize {
-    (y as usize * MAX_WIDTH as usize) + x as usize
-}
-
-/**
- * The reverse of the `xy_idx()` function above.
- */
-pub fn idx_xy(idx: usize) -> (i32, i32) {
-    let x = (idx % (MAX_WIDTH as usize)) as i32;
-    let y = (idx / (MAX_WIDTH as usize)) as i32;
-    (x, y)
 }
