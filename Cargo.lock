@@ -2419,6 +2419,7 @@ dependencies = [
  "crossterm 0.29.0",
  "ctrlc",
  "indexmap",
+ "lazy_static",
  "log",
  "rand 0.9.2",
  "ratatui",

@@ -1,7 +1,8 @@
+use ratatui::style::Color;
 use rltk::{Point, RandomNumberGenerator, field_of_view};
 use specs::prelude::*;
 
-use crate::{Logbook, Player, Position, Viewshed, component::{Hidden, Name}, generate::map::{Map}};
+use crate::{Player, Position, Viewshed, component::{Hidden, Name}, generate::map::Map, logbook::logbook::Logger};
 
 pub struct VisibilitySystem {
 
@@ -11,7 +12,6 @@ impl<'a> System<'a> for VisibilitySystem {
     type SystemData = (
         Entities<'a>,
         WriteExpect<'a, Map>,
-        WriteExpect<'a, Logbook>,
         WriteExpect<'a, RandomNumberGenerator>,
         ReadStorage<'a, Player>,
         ReadStorage<'a, Name>,
@@ -24,7 +24,6 @@ impl<'a> System<'a> for VisibilitySystem {
         let (
             entities,
             mut map,
-            mut logbook,
             mut rng,
             player,
             names,
@@ -61,7 +60,12 @@ impl<'a> System<'a> for VisibilitySystem {
                             if let Some(_hidden) = hidden.get(*tile_entity) {
                                 if rng.roll_dice(1, 20) == 20 {
                                     let name = names.get(*tile_entity).expect("Unable to fetch name for hidden entity");
-                                    logbook.entries.push(format!("Your keen gaze revealed a hidden {}!", name.name));
+                                    Logger::new()
+                                        .append("Your keen gaze revealed a hidden ")
+                                        .with_color(Color::Red)
+                                        .append(format!("{}!", name.name))
+                                        .log();
+                                    // logbook.entries.push(format!("Your keen gaze revealed a hidden {}!", name.name));
                                     hidden.remove(*tile_entity);
                                 }
                             }

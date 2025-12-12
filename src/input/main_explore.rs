@@ -5,8 +5,8 @@ use std::cmp::{max, min};
 
 use crate::{
     App, RootScreen, RunState, Screen,
-    component::{Attack, Item, Logbook, Player, Position, Stats, WantsToPickupItem},
-    generate::map::{Map, TileType},
+    component::{Attack, Item, Player, Position, Stats, WantsToPickupItem},
+    generate::map::{Map, TileType}, logbook::logbook::Logger,
 };
 
 pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_event: KeyEvent) -> Option<RunState> {
@@ -98,7 +98,6 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) -> Option<RunSta
     let stats = ecs.read_storage::<Stats>();
     let mut player_position = ecs.write_resource::<Point>();
     let map = ecs.fetch::<Map>();
-    let mut _logbook = ecs.write_resource::<Logbook>();
 
     for (entity, pos, _player) in (&entities, &mut positions, &mut players).join() {
         let next_pos_x = min(map.width - 1, max(0, pos.x + delta_x));
@@ -135,7 +134,6 @@ fn try_get_item(ecs: &mut World) -> Option<RunState> {
     let entities = ecs.entities();
     let items = ecs.read_storage::<Item>();
     let positions = ecs.read_storage::<Position>();
-    let mut logbook = ecs.fetch_mut::<Logbook>();
 
     let mut target_item: Option<Entity> = None;
     for (item_entity, _item, position) in (&entities, &items, &positions).join() {
@@ -145,9 +143,7 @@ fn try_get_item(ecs: &mut World) -> Option<RunState> {
     }
 
     match target_item {
-        None => logbook
-            .entries
-            .push("There is nothing here to pick up.".to_string()),
+        None => Logger::new().append("There is nothing here to pick up.").log(),
         Some(item) => {
             let mut pickup = ecs.write_storage::<WantsToPickupItem>();
             pickup

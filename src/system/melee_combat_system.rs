@@ -4,8 +4,8 @@ use ratatui::style::Color;
 use specs::prelude::*;
 
 use crate::{
-    Attack, Damage, Logbook, Name, Stats,
-    component::{Armor, Equipped, Lifetime, MeleeWeapon, Position, Renderable},
+    Attack, Damage, Name, Stats,
+    component::{Armor, Equipped, Lifetime, MeleeWeapon, Position, Renderable}, logbook::logbook::Logger,
 };
 
 pub struct MeleeCombatSystem {}
@@ -17,7 +17,6 @@ impl<'a> System<'a> for MeleeCombatSystem {
         ReadStorage<'a, Name>,
         ReadStorage<'a, Stats>,
         WriteStorage<'a, Damage>,
-        WriteExpect<'a, Logbook>,
         ReadStorage<'a, Equipped>,
         ReadStorage<'a, MeleeWeapon>,
         ReadStorage<'a, Armor>,
@@ -40,7 +39,6 @@ impl<'a> System<'a> for MeleeCombatSystem {
             names,
             stats,
             mut damages,
-            mut logbook,
             equipment,
             melee_weapons,
             armor,
@@ -78,16 +76,17 @@ impl<'a> System<'a> for MeleeCombatSystem {
                     let damage_inflicted = i32::max(0, raw_damage - raw_defense);
 
                     if damage_inflicted == 0 {
-                        logbook.entries.push(format!(
-                            "{} is too weak to hurt {}",
-                            &name.name, &target_name.name
-                        ));
+                        Logger::new()
+                            .append(format!("{} is too weak to hurt {}", &name.name, &target_name.name))
+                            .log();
                         continue;
                     }
-                    logbook.entries.push(format!(
-                        "{} hits {}, inflicting {} damage",
-                        &name.name, &target_name.name, damage_inflicted
-                    ));
+                    Logger::new()
+                        .append(format!(
+                            "{} hits {}, inflicting {} damage",
+                            &name.name, &target_name.name, damage_inflicted
+                        ))
+                        .log();
                     Damage::new_damage(&mut damages, attack.target, damage_inflicted);
 
                     /*

@@ -24,11 +24,11 @@ pub struct Player {}
 #[derive(Component, Debug)]
 pub struct Monster {}
 
-#[derive(Component, Debug)]
-pub struct Logbook {
-    pub entries: Vec<String>,
-    pub scroll_offset: u16,
-}
+// #[derive(Component, Debug)]
+// pub struct Logbook {
+//     pub entries: Vec<String>,
+//     pub scroll_offset: u16,
+// }
 
 #[derive(Component, Debug)]
 pub struct Name {

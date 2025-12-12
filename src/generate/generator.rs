@@ -1,9 +1,9 @@
 use std::ops::Deref;
 
 use crate::{
-    component::InBackpack, generate::{
+    Player, Position, RunState, component::InBackpack, generate::{
         map::Map, spawn::{spawn_player, spawn_weighted_item, spawn_weighted_monster}
-    }, Logbook, Player, Position, RunState
+    }, logbook::{logbook::Logger}
 };
 use rltk::{Point, RandomNumberGenerator};
 use specs::prelude::*;
@@ -75,10 +75,14 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
         world.insert(player);
     }
 
-    if !world.has_value::<Logbook>() {
-        world.insert(Logbook {
-            entries: vec!["You begin your adventure in a smallish room...".to_string()],
-            scroll_offset: 0,
-        });
+    if floor_index == 0 {
+        Logger::new().append("You begin your adventure in a smallish room...").log();
     }
+
+    // if !world.has_value::<Logbook>() {
+    //     world.insert(Logbook {
+    //         entries: vec!["You begin your adventure in a smallish room...".to_string()],
+    //         scroll_offset: 0,
+    //     });
+    // }
 }

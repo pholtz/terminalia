@@ -11,6 +11,7 @@ use specs::prelude::*;
 mod component;
 mod generate;
 mod input;
+mod logbook;
 mod render;
 mod system;
 
@@ -26,7 +27,7 @@ use system::{
 use crate::{
     component::{
         Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Hidden, InBackpack, Inventory,
-        Item, Lifetime, Logbook, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion,
+        Item, Lifetime, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion,
         Renderable, Stats, Triggerable, Viewshed, WantsToConsumeItem, WantsToPickupItem,
     },
     damage_system::DamageSystem,

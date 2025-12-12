@@ -2,9 +2,9 @@ use specs::{Entities, Entity, Join, ReadExpect, ReadStorage, System, WriteExpect
 
 use crate::{
     component::{
-        Equippable, Equipped, InBackpack, Inventory, Logbook, MagicMapper, Name, Position, Potion, Stats, WantsToConsumeItem, WantsToPickupItem
+        Equippable, Equipped, InBackpack, Inventory, MagicMapper, Name, Position, Potion, Stats, WantsToConsumeItem, WantsToPickupItem
     },
-    generate::map::Map,
+    generate::map::Map, logbook::logbook::Logger,
 };
 
 pub struct InventorySystem {}
@@ -19,7 +19,6 @@ impl<'a> System<'a> for InventorySystem {
         ReadStorage<'a, Name>,
         WriteStorage<'a, Stats>,
         WriteStorage<'a, InBackpack>,
-        WriteExpect<'a, Logbook>,
         WriteStorage<'a, Inventory>,
         WriteExpect<'a, Map>,
         ReadStorage<'a, Potion>,
@@ -38,7 +37,6 @@ impl<'a> System<'a> for InventorySystem {
             names,
             mut stats,
             mut backpack,
-            mut logbook,
             mut inventories,
             mut map,
             potions,
@@ -74,9 +72,7 @@ impl<'a> System<'a> for InventorySystem {
             }
 
             if pickup.collected_by == *player_entity {
-                logbook
-                    .entries
-                    .push(format!("You pick up the {}.", item_name.name));
+                Logger::new().append(format!("You pick up the {}.", item_name.name)).log();
             }
         }
         wants_pickup.clear();
@@ -101,10 +97,10 @@ impl<'a> System<'a> for InventorySystem {
                 should_consume = true;
                 stat.hp = i32::min(stat.max_hp, stat.hp + potion.heal_amount);
                 if entity == *player_entity {
-                    logbook.entries.push(format!(
+                    Logger::new().append(format!(
                         "You consume the {}, healing {} hp.",
                         item_name.name, potion.heal_amount
-                    ));
+                    )).log();
                 }
             }
 
@@ -116,10 +112,10 @@ impl<'a> System<'a> for InventorySystem {
                 for (item_entity, equipment, name) in (&entities, &equipment, &names).join() {
                     if equipment.owner == entity && equipment.slot == equippable.slot {
                         unequip.push(item_entity);
-                        logbook.entries.push(format!(
+                        Logger::new().append(format!(
                             "You unequp the {} from the {:?} slot.",
                             name.name, equipment.slot,
-                        ));
+                        )).log();
                     }
                 }
                 unequip.iter().for_each(|item| { equipment.remove(*item).expect("Unable to unequip item"); });
@@ -134,10 +130,10 @@ impl<'a> System<'a> for InventorySystem {
                     equipment.insert(consume.item, Equipped { slot: equippable.slot, owner: entity })
                         .expect("Unable to equip desired item");
                     if entity == *player_entity {
-                        logbook.entries.push(format!(
+                        Logger::new().append(format!(
                             "You equip the {} to the {:?} slot.",
                             item_name.name, equippable.slot
-                        ));
+                        )).log();
                     }
                 }
             }
@@ -149,16 +145,14 @@ impl<'a> System<'a> for InventorySystem {
                 for tile in map.revealed_tiles.iter_mut() {
                     *tile = true;
                 }
-                logbook.entries.push(format!(
-                    "The darkness lifts, and you become more aware of everything around you."
-                ));
+                Logger::new().append("The darkness lifts, and you become more aware of everything around you.").log();
             }
 
             if !has_effect {
-                logbook.entries.push(format!(
+                Logger::new().append(format!(
                     "You consume the {}, but nothing happens.",
                     item_name.name
-                ));
+                )).log();
             }
 
             /*

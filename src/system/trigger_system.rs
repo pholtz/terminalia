@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use ratatui::style::Color;
 use specs::prelude::*;
 
-use crate::{component::{Damage, Hidden, Lifetime, Logbook, Name, Position, Renderable, Stats, Triggerable}, generate::map::{Map}};
+use crate::{component::{Damage, Hidden, Lifetime, Name, Position, Renderable, Stats, Triggerable}, generate::map::Map, logbook::logbook::Logger};
 pub struct TriggerSystem {
 
 }
@@ -12,7 +12,6 @@ impl<'a> System<'a> for TriggerSystem {
     type SystemData = (
         Entities<'a>,
         ReadExpect<'a, Map>,
-        WriteExpect<'a, Logbook>,
         WriteStorage<'a, Position>,
         ReadStorage<'a, Name>,
         ReadStorage<'a, Stats>,
@@ -27,7 +26,6 @@ impl<'a> System<'a> for TriggerSystem {
         let (
             entities,
             map,
-            mut logbook,
             mut positions,
             names,
             stats,
@@ -46,10 +44,18 @@ impl<'a> System<'a> for TriggerSystem {
             for colocated_entity in map.tile_content[index].iter() {
                 if let Some(trigger) = triggerables.get(*colocated_entity) {
                     let trigger_name = names.get(*colocated_entity).expect("Unable to get name for triggerable");
-                    logbook.entries.push(format!("{} triggered {}, dealing {} damage!",
-                        name.name,
-                        trigger_name.name,
-                        trigger.damage));
+                    Logger::new()
+                        .with_color(Color::Blue)
+                        .append(format!("{} ", name.name))
+                        .with_color(Color::White)
+                        .append("triggered ")
+                        .with_color(Color::Blue)
+                        .append(format!("{}, ", trigger_name.name))
+                        .with_color(Color::White)
+                        .append("dealing ")
+                        .with_color(Color::Red)
+                        .append(format!("{} damage!", trigger.damage))
+                        .log();
                     Damage::new_damage(&mut damages, entity, trigger.damage);
                     hidden.remove(*colocated_entity);
                     particles_to_create.push(position.clone());

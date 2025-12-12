@@ -1,7 +1,7 @@
 use rltk::{Point};
 use specs::prelude::*;
 
-use crate::{generate::map::{Map}, Attack, Logbook, Monster, Position, RunState, Viewshed};
+use crate::{generate::map::{Map}, Attack, Monster, Position, RunState, Viewshed};
 
 pub struct MonsterSystem {
 
@@ -16,7 +16,6 @@ impl<'a> System<'a> for MonsterSystem {
         WriteStorage<'a, Attack>,
         ReadExpect<'a, Point>,
         ReadExpect<'a, Entity>,
-        WriteExpect<'a, Logbook>,
         WriteExpect<'a, Map>,
         ReadExpect<'a, RunState>,
     );
@@ -30,7 +29,6 @@ impl<'a> System<'a> for MonsterSystem {
             mut attack,
             player_position,
             player_entity,
-            mut _logbook,
             mut map,
             runstate,
         ) = data;

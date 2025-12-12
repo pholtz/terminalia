@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use specs::prelude::*;
 
-use crate::{App, RunState, Screen, component::Logbook};
+use crate::{App, RunState, Screen};
 
 pub fn handle_main_log_key_event(app: &mut App, key_event: KeyEvent) -> Option<RunState> {
     match key_event.code {
@@ -22,21 +22,20 @@ pub fn handle_main_log_key_event(app: &mut App, key_event: KeyEvent) -> Option<R
 }
 
 fn try_scroll_logbook(ecs: &mut World, delta: i16) -> Option<RunState> {
-    let mut logbook = ecs.write_resource::<Logbook>();
-    if delta.is_positive() {
-        match logbook.scroll_offset.checked_add(delta as u16) {
-            Some(offset) => {
-                if offset <= ((logbook.entries.len() - 1) as u16) {
-                    logbook.scroll_offset = offset
-                }
-            }
-            None => {}
-        }
-    } else {
-        match logbook.scroll_offset.checked_sub(delta.abs() as u16) {
-            Some(offset) => logbook.scroll_offset = offset,
-            None => {}
-        }
-    }
+    // if delta.is_positive() {
+    //     match logbook.scroll_offset.checked_add(delta as u16) {
+    //         Some(offset) => {
+    //             if offset <= ((logbook.entries.len() - 1) as u16) {
+    //                 logbook.scroll_offset = offset
+    //             }
+    //         }
+    //         None => {}
+    //     }
+    // } else {
+    //     match logbook.scroll_offset.checked_sub(delta.abs() as u16) {
+    //         Some(offset) => logbook.scroll_offset = offset,
+    //         None => {}
+    //     }
+    // }
     return None;
 }

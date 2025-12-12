@@ -1,6 +1,6 @@
 use specs::prelude::*;
 
-use crate::{Damage, Logbook, Name, Player, Stats, component::Position, generate::map::{Map}};
+use crate::{Damage, Name, Player, Stats, component::Position, generate::map::Map, logbook::logbook::Logger};
 
 pub struct DamageSystem {}
 
@@ -43,10 +43,9 @@ pub fn cleanup_dead_entities(ecs: &mut World) {
         let entities = ecs.entities();
         let stats = ecs.read_storage::<Stats>();
         let names = ecs.read_storage::<Name>();
-        let mut logbook = ecs.write_resource::<Logbook>();
         for (entity, stats, name) in (&entities, &stats, &names).join() {
             if stats.hp <= 0 {
-                logbook.entries.push(format!("{} has died", name.name));
+                Logger::new().append(format!("{} has died", name.name)).log();
                 dead.push(entity);
             }
         }

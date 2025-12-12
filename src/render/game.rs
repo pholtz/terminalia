@@ -9,7 +9,7 @@ use rltk::Point;
 use specs::prelude::*;
 
 use crate::{
-    RunState, component::{Hidden, Inventory, Item, Logbook, Name, Position, Renderable, Stats}, generate::map::{Map, TileType}
+    RunState, component::{Hidden, Inventory, Item, Name, Position, Renderable, Stats}, generate::map::{Map, TileType}, logbook::logbook::format_text
 };
 
 pub const VIEW_WIDTH: i32 = 80;
@@ -174,7 +174,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
      * Fetch and truncate the most recent logbook entries,
      * or the relevant name if in examine mode.
      */
-    let text = match *runstate {
+    let text: Text = match *runstate {
         RunState::Examining { index } => {
             let mut serialized_examine: String = "".to_string();
             for entity in map.tile_content.get(index).unwrap_or(&Vec::new()).iter() {
@@ -189,19 +189,19 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
 
                 if !serialized_examine.is_empty() { break; }
             }
-            serialized_examine
+            Text::raw(serialized_examine)
         },
         _ => {
-            let logbook = ecs.fetch::<Logbook>();
-            let recent_entries = logbook.entries.len().saturating_sub(4);
-            let mut serialized_log = String::with_capacity(1024);
-            for (index, entry) in logbook.entries[recent_entries..].iter().enumerate() {
-                serialized_log.push_str(entry);
-                if index < logbook.entries[recent_entries..].len() {
-                    serialized_log.push('\n');
-                }
-            }
-            serialized_log
+            format_text(4)
+            // let recent_entries = logbook.entries.len().saturating_sub(4);
+            // let mut serialized_log = String::with_capacity(1024);
+            // for (index, entry) in logbook.entries[recent_entries..].iter().enumerate() {
+            //     serialized_log.push_str(entry);
+            //     if index < logbook.entries[recent_entries..].len() {
+            //         serialized_log.push('\n');
+            //     }
+            // }
+            // serialized_log
         }
     };
 
@@ -240,7 +240,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
 
     frame.render_widget(Paragraph::new(Text::from(lines)), left_vertical_layout[0]);
     frame.render_widget(
-        Paragraph::new(Text::raw(text)),
+        Paragraph::new(text),
         left_vertical_layout[1]
     );
 
