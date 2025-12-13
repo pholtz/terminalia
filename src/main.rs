@@ -34,13 +34,13 @@ use crate::{
     generate::generator::{generate_floor, reset_floor},
     input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
-        main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event,
+        main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event, main_quit::handle_main_quit_key_event,
     },
     inventory_system::InventorySystem,
     map_indexing_system::MapIndexingSystem,
     melee_combat_system::MeleeCombatSystem,
     monster_system::MonsterSystem,
-    render::{game::render_game, log::render_log},
+    render::{game::render_game, log::render_log, quit::render_quit},
     system::{particle_system::ParticleSystem, trigger_system::TriggerSystem},
     visibility_system::VisibilitySystem,
 };
@@ -61,7 +61,7 @@ pub enum Screen {
     Explore,
 
     /**
-     * A toggleable view containing a fullscreen logbook.
+     * A non-combat toggleable view containing a fullscreen logbook.
      */
     Log,
 
@@ -70,6 +70,11 @@ pub enum Screen {
      * and allows them to use or drop inventory item.
      */
     Inventory,
+
+    /**
+     * A dialog that fires when the user prompts to quit.
+     */
+    Quit { quit: bool },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -187,6 +192,7 @@ impl App {
                 Screen::Explore => handle_main_explore_key_event(self, self.runstate, key_event),
                 Screen::Log => handle_main_log_key_event(self, key_event),
                 Screen::Inventory => handle_main_inventory_key_event(self, key_event),
+                Screen::Quit { quit } => handle_main_quit_key_event(self, quit, key_event),
             },
             RootScreen::GameOver => handle_game_over_key_event(self, key_event),
         }
@@ -205,6 +211,7 @@ impl App {
                 }
                 Screen::Log => render_log(&mut self.ecs, frame),
                 Screen::Inventory => render_inventory(&mut self.ecs, frame),
+                Screen::Quit { quit } => render_quit(&mut self.ecs, quit, frame),
             },
             RootScreen::GameOver => render_game_over(frame),
         }

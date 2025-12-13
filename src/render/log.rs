@@ -1,24 +1,26 @@
-use ratatui::{text::Text, widgets::Paragraph, Frame};
+use std::{cmp, sync::atomic::Ordering};
+
+use ratatui::{ Frame, layout::Alignment, widgets::{Block, Borders, Paragraph}};
 use specs::prelude::*;
 
-use crate::{logbook::logbook::{Logger, format_text}, render::game::VIEW_HEIGHT};
+use crate::{logbook::logbook::{LOG_INDEX, format_text}, render::game::VIEW_HEIGHT};
 
 /**
  * Renders the fullscreen logbook, when toggled.
  */
-pub fn render_log(ecs: &mut World, frame: &mut Frame) {
-    // let recent_entries = logbook.entries.len().saturating_sub(VIEW_HEIGHT as usize);
-    // let mut serialized_log = String::with_capacity(1024);
-    // for entry in &logbook.entries[recent_entries..] {
-    //     serialized_log.push_str(entry);
-    //     serialized_log.push('\n');
-    // }
-    // frame.render_widget(
-    //     Paragraph::new(Text::raw(serialized_log)).scroll((logbook.scroll_offset, 0)),
-    //     frame.area(),
-    // );
+pub fn render_log(_ecs: &mut World, frame: &mut Frame) {
+    let text = format_text(VIEW_HEIGHT as usize);
+    let text_length = text.lines.len().try_into().expect("Unable to convert log length from usize -> u16");
+    let index: u16 = LOG_INDEX.load(Ordering::Relaxed).try_into().expect("Unable to convert log_index from usize -> u16");
+    let adjusted_index = cmp::min(text_length, index);
     frame.render_widget(
-        Paragraph::new(format_text(VIEW_HEIGHT as usize)),
+        Paragraph::new(format_text(VIEW_HEIGHT as usize))
+            .scroll((adjusted_index, 0))
+            .block(Block::bordered()
+                .borders(Borders::ALL)
+                .title("Logbook")
+                .title_alignment(Alignment::Center)
+            ),
         frame.area()
     );
 }

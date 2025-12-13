@@ -1,6 +1,7 @@
+use ratatui::style::Color;
 use specs::prelude::*;
 
-use crate::{Damage, Name, Player, Stats, component::Position, generate::map::Map, logbook::logbook::Logger};
+use crate::{Damage, Name, Player, Stats, component::{Monster, Position}, generate::map::Map, logbook::logbook::Logger};
 
 pub struct DamageSystem {}
 
@@ -43,9 +44,20 @@ pub fn cleanup_dead_entities(ecs: &mut World) {
         let entities = ecs.entities();
         let stats = ecs.read_storage::<Stats>();
         let names = ecs.read_storage::<Name>();
+        let monsters = ecs.read_storage::<Monster>();
+        let player_entity = ecs.fetch::<Entity>();
         for (entity, stats, name) in (&entities, &stats, &names).join() {
             if stats.hp <= 0 {
-                Logger::new().append(format!("{} has died", name.name)).log();
+                Logger::new()
+                    .with_color(
+                        if monsters.contains(entity) { Color::Red }
+                        else if entity == *player_entity { Color::Green }
+                        else { Color::Gray }
+                    )
+                    .append(format!("{} ", name.name))
+                    .with_color(Color::White)
+                    .append("has died.")
+                    .log();
                 dead.push(entity);
             }
         }

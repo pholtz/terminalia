@@ -65,7 +65,6 @@ impl<'a> System<'a> for VisibilitySystem {
                                         .with_color(Color::Red)
                                         .append(format!("{}!", name.name))
                                         .log();
-                                    // logbook.entries.push(format!("Your keen gaze revealed a hidden {}!", name.name));
                                     hidden.remove(*tile_entity);
                                 }
                             }

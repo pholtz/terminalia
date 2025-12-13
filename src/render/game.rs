@@ -193,15 +193,6 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
         },
         _ => {
             format_text(4)
-            // let recent_entries = logbook.entries.len().saturating_sub(4);
-            // let mut serialized_log = String::with_capacity(1024);
-            // for (index, entry) in logbook.entries[recent_entries..].iter().enumerate() {
-            //     serialized_log.push_str(entry);
-            //     if index < logbook.entries[recent_entries..].len() {
-            //         serialized_log.push('\n');
-            //     }
-            // }
-            // serialized_log
         }
     };
 

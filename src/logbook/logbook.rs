@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Mutex, atomic::{AtomicU16}};
 
 use lazy_static::lazy_static;
 use ratatui::{style::{Color, Style}, text::{Line, Span, Text}};
@@ -39,21 +39,25 @@ pub struct LogFragment {
     pub text: String,
 }
 
+/*****************************
+ * Static log data structure *
+ *****************************/
 lazy_static! {
-    static ref LOG: Mutex<Vec<Vec<LogFragment>>> = Mutex::new(Vec::new());
+    static ref LOGBOOK: Mutex<Vec<Vec<LogFragment>>> = Mutex::new(Vec::new());
 }
+pub static LOG_INDEX: AtomicU16 = AtomicU16::new(0);
 
 pub fn append(fragment: LogFragment) {
-    LOG.lock().unwrap().push(vec![fragment]);
+    LOGBOOK.lock().unwrap().push(vec![fragment]);
 }
 
 pub fn append_many(fragments: Vec<LogFragment>) {
-    LOG.lock().unwrap().push(fragments);
+    LOGBOOK.lock().unwrap().push(fragments);
 }
 
 pub fn format_text(limit: usize) -> Text<'static> {
     let mut lines: Vec<Line> = Vec::new();
-    for line in LOG.lock().unwrap().iter().rev().take(limit) {
+    for line in LOGBOOK.lock().unwrap().iter().rev().take(limit).rev() {
         let mut spans: Vec<Span> = Vec::new();
         for chunk in line.iter() {
             spans.push(Span::styled(chunk.text.clone(), Style::new().fg(chunk.color)));
@@ -63,6 +67,10 @@ pub fn format_text(limit: usize) -> Text<'static> {
     return Text::from(lines);
 }
 
+pub fn size() -> usize {
+    LOGBOOK.lock().unwrap().len()
+}
+
 pub fn clear() {
-    LOG.lock().unwrap().clear();
+    LOGBOOK.lock().unwrap().clear();
 }

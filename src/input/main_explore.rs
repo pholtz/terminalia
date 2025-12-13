@@ -4,7 +4,7 @@ use specs::prelude::*;
 use std::cmp::{max, min};
 
 use crate::{
-    App, RootScreen, RunState, Screen,
+    App, RunState, Screen,
     component::{Attack, Item, Player, Position, Stats, WantsToPickupItem},
     generate::map::{Map, TileType}, logbook::logbook::Logger,
 };
@@ -14,8 +14,11 @@ pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_even
         KeyCode::Esc => {
             match runstate {
                 RunState::Examining { index: _ } => Some(RunState::AwaitingInput),
+                RunState::AwaitingInput => {
+                    app.screen = Screen::Quit { quit: false };
+                    None
+                }
                 _ => {
-                    app.root_screen = RootScreen::Menu;
                     None
                 }
             }
