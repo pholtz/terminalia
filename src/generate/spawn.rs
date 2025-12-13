@@ -4,7 +4,7 @@ use rltk::{RandomNumberGenerator};
 use specs::{prelude::*};
 
 use crate::{component::{
-    Armor, BlocksTile, EquipmentSlot, Equippable, Hidden, Inventory, Item, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, Renderable, Stats, Triggerable, Viewshed
+    Armor, BlocksTile, EquipmentSlot, Equippable, Hidden, Inventory, Item, MagicMapper, MeleeWeapon, Monster, Name, Player, Pool, Position, Potion, Renderable, Stats, Triggerable, Viewshed
 }, generate::{random_table::RandomTable, rect::Rect}};
 
 /// Spawns a weighted item based on the current floor and an internal spawn table.
@@ -82,10 +82,15 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
         })
         .with(BlocksTile {})
         .with(Stats {
-            max_hp: 50,
-            hp: 50,
+            hp: Pool { current: 50, max: 50 },
+            mp: Pool { current: 10, max: 10 },
+            level: 1,
             strength: 5,
-            defense: 1,
+            dexterity: 1,
+            constitution: 1,
+            intelligence: 1,
+            wisdom: 1,
+            charisma: 1,
         })
         .with(Inventory {
             gold: 0,
@@ -203,10 +208,15 @@ pub fn spawn_monster_rat(ecs: &mut World, pos: Position) {
         })
         .with(BlocksTile {})
         .with(Stats {
-            max_hp: 4,
-            hp: 4,
+            hp: Pool { current: 4, max: 4 },
+            mp: Pool { current: 0, max: 0 },
+            level: 1,
             strength: 2,
-            defense: 0,
+            dexterity: 0,
+            constitution: 1,
+            intelligence: 1,
+            wisdom: 1,
+            charisma: 1,
         })
         .build();
 }
@@ -230,10 +240,15 @@ pub fn spawn_monster_snake(ecs: &mut World, pos: Position) {
         })
         .with(BlocksTile {})
         .with(Stats {
-            max_hp: 8,
-            hp: 8,
+            hp: Pool { current: 8, max: 8 },
+            mp: Pool { current: 0, max: 0 },
+            level: 1,
             strength: 2,
-            defense: 1,
+            dexterity: 1,
+            constitution: 1,
+            intelligence: 1,
+            wisdom: 1,
+            charisma: 1,
         })
         .build();
 }
@@ -255,10 +270,15 @@ pub fn spawn_monster_bat(ecs: &mut World, pos: Position) {
         })
         .with(BlocksTile {})
         .with(Stats {
-            max_hp: 10,
-            hp: 10,
+            hp: Pool { current: 10, max: 10 },
+            mp: Pool { current: 0, max: 0 },
+            level: 1,
             strength: 2,
-            defense: 1,
+            dexterity: 1,
+            constitution: 1,
+            intelligence: 1,
+            wisdom: 1,
+            charisma: 1,
         })
         .build();
 }
@@ -282,10 +302,15 @@ pub fn spawn_monster_goblin(ecs: &mut World, pos: Position) {
         })
         .with(BlocksTile {})
         .with(Stats {
-            max_hp: 12,
-            hp: 12,
+            hp: Pool { current: 12, max: 12 },
+            mp: Pool { current: 0, max: 0 },
+            level: 2,
             strength: 3,
-            defense: 1,
+            dexterity: 1,
+            constitution: 1,
+            intelligence: 1,
+            wisdom: 1,
+            charisma: 1,
         })
         .build();
 }

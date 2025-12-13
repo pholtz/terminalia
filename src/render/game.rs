@@ -159,8 +159,8 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
     match (stats.get(*player), inventory.get(*player), names.get(*player)) {
         (Some(stats), Some(_inventory), Some(name)) => {
             player_name = name.name.clone();
-            player_hp = format!("HP: {} / {} ", stats.hp, stats.max_hp);
-            let hp_bar_remaining = ((stats.hp as f64 / stats.max_hp as f64) * (25 as f64)).round() as usize;
+            player_hp = format!("HP: {} / {} ", stats.hp.current, stats.hp.max);
+            let hp_bar_remaining = ((stats.hp.current as f64 / stats.hp.max as f64) * (25 as f64)).round() as usize;
             player_hp_remaining = " ".repeat(hp_bar_remaining);
             player_hp_total = " ".repeat(25 - hp_bar_remaining);
             player_mp = "MP: 10 / 10 ".to_string();

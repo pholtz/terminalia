@@ -24,7 +24,7 @@ impl <'a> System<'a> for DamageSystem {
         ) = data;
 
         for (entity, stats, damage) in (&entities, &mut stats, &damage).join() {
-            stats.hp -= damage.amount.iter().sum::<i32>();
+            stats.hp.current -= damage.amount.iter().sum::<i32>();
 
             /*
              * Render bloodstains anywhere damage occurred
@@ -47,7 +47,7 @@ pub fn cleanup_dead_entities(ecs: &mut World) {
         let monsters = ecs.read_storage::<Monster>();
         let player_entity = ecs.fetch::<Entity>();
         for (entity, stats, name) in (&entities, &stats, &names).join() {
-            if stats.hp <= 0 {
+            if stats.hp.current <= 0 {
                 Logger::new()
                     .with_color(
                         if monsters.contains(entity) { Color::Red }
@@ -72,7 +72,7 @@ pub fn is_game_over(ecs: &mut World) -> bool {
     let players = ecs.read_storage::<Player>();
     let stats = ecs.read_storage::<Stats>();
     for (_player, stats) in (&players, &stats).join() {
-        if stats.hp <= 0 {
+        if stats.hp.current <= 0 {
             return true;
         }
     }

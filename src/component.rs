@@ -44,12 +44,24 @@ pub struct Viewshed {
 #[derive(Component)]
 pub struct BlocksTile {}
 
+#[derive(Debug, Clone)]
+pub struct Pool {
+    pub current: i32,
+    pub max: i32,
+}
+
 #[derive(Component)]
 pub struct Stats {
-    pub max_hp: i32,
-    pub hp: i32,
+    pub hp: Pool,
+    pub mp: Pool,
+    pub level: i32,
+
     pub strength: i32,
-    pub defense: i32,
+    pub dexterity: i32,
+    pub constitution: i32,
+    pub intelligence: i32,
+    pub wisdom: i32,
+    pub charisma: i32,
 }
 
 #[derive(Component)]

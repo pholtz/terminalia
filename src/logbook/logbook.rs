@@ -29,6 +29,14 @@ impl Logger {
         self
     }
 
+    pub fn append_with_color<T: ToString>(mut self, color: Color, text: T) -> Self {
+        self.fragments.push(LogFragment {
+            color: color,
+            text: text.to_string(),
+        });
+        self
+    }
+
     pub fn log(self) {
         append_many(self.fragments);
     }

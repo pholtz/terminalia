@@ -1,3 +1,4 @@
+use ratatui::style::Color;
 use specs::{Entities, Entity, Join, ReadExpect, ReadStorage, System, WriteExpect, WriteStorage};
 
 use crate::{
@@ -72,7 +73,11 @@ impl<'a> System<'a> for InventorySystem {
             }
 
             if pickup.collected_by == *player_entity {
-                Logger::new().append(format!("You pick up the {}.", item_name.name)).log();
+                Logger::new()
+                    .append("You pick up the ")
+                    .with_color(Color::LightBlue)
+                    .append(format!("{}.", item_name.name))
+                    .log();
             }
         }
         wants_pickup.clear();
@@ -95,12 +100,14 @@ impl<'a> System<'a> for InventorySystem {
             if let Some(potion) = potions.get(consume.item) {
                 has_effect = true;
                 should_consume = true;
-                stat.hp = i32::min(stat.max_hp, stat.hp + potion.heal_amount);
+                stat.hp.current = i32::min(stat.hp.max, stat.hp.current + potion.heal_amount);
                 if entity == *player_entity {
-                    Logger::new().append(format!(
-                        "You consume the {}, healing {} hp.",
-                        item_name.name, potion.heal_amount
-                    )).log();
+                    Logger::new()
+                        .append("You consume the ")
+                        .append_with_color(Color::Blue, format!("{}", item_name.name))
+                        .append(", healing ")
+                        .append_with_color(Color::Green, format!("{} hp.", potion.heal_amount))
+                        .log();
                 }
             }
 

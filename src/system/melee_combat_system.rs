@@ -50,13 +50,13 @@ impl<'a> System<'a> for MeleeCombatSystem {
         for (attacker_entity, attack, name, stat) in
             (&entities, &mut attacks, &names, &stats).join()
         {
-            if stat.hp > 0 {
-                // attacker's health
+            // attacker's health
+            if stat.hp.current > 0 {
                 let target_stats = stats.get(attack.target).unwrap();
                 let target_name = names.get(attack.target).unwrap();
-                if target_stats.hp > 0 {
-                    // target's health
-
+                
+                // target's health
+                if target_stats.hp.current > 0 {
                     let mut melee_weapon_damage = 0;
                     for (equipped, melee_weapon) in (&equipment, &melee_weapons).join() {
                         if equipped.owner == attacker_entity {
@@ -72,7 +72,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
                     }
 
                     let raw_damage = stat.strength + melee_weapon_damage;
-                    let raw_defense = target_stats.defense + armor_defense;
+                    let raw_defense = target_stats.dexterity + armor_defense;
                     let damage_inflicted = i32::max(0, raw_damage - raw_defense);
 
                     if damage_inflicted == 0 {

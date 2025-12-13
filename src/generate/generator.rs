@@ -78,11 +78,4 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
     if floor_index == 0 {
         Logger::new().append("You begin your adventure in a smallish room...").log();
     }
-
-    // if !world.has_value::<Logbook>() {
-    //     world.insert(Logbook {
-    //         entries: vec!["You begin your adventure in a smallish room...".to_string()],
-    //         scroll_offset: 0,
-    //     });
-    // }
 }
