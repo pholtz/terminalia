@@ -54,6 +54,7 @@ pub struct Pool {
 pub struct Stats {
     pub hp: Pool,
     pub mp: Pool,
+    pub exp: Pool,
     pub level: i32,
 
     pub strength: i32,

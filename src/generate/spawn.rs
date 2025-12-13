@@ -84,6 +84,7 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
         .with(Stats {
             hp: Pool { current: 50, max: 50 },
             mp: Pool { current: 10, max: 10 },
+            exp: Pool { current: 0, max: 1_000 },
             level: 1,
             strength: 5,
             dexterity: 1,
@@ -210,6 +211,7 @@ pub fn spawn_monster_rat(ecs: &mut World, pos: Position) {
         .with(Stats {
             hp: Pool { current: 4, max: 4 },
             mp: Pool { current: 0, max: 0 },
+            exp: Pool { current: 0, max: 0 },
             level: 1,
             strength: 2,
             dexterity: 0,
@@ -242,6 +244,7 @@ pub fn spawn_monster_snake(ecs: &mut World, pos: Position) {
         .with(Stats {
             hp: Pool { current: 8, max: 8 },
             mp: Pool { current: 0, max: 0 },
+            exp: Pool { current: 0, max: 0 },
             level: 1,
             strength: 2,
             dexterity: 1,
@@ -272,6 +275,7 @@ pub fn spawn_monster_bat(ecs: &mut World, pos: Position) {
         .with(Stats {
             hp: Pool { current: 10, max: 10 },
             mp: Pool { current: 0, max: 0 },
+            exp: Pool { current: 0, max: 0 },
             level: 1,
             strength: 2,
             dexterity: 1,
@@ -304,6 +308,7 @@ pub fn spawn_monster_goblin(ecs: &mut World, pos: Position) {
         .with(Stats {
             hp: Pool { current: 12, max: 12 },
             mp: Pool { current: 0, max: 0 },
+            exp: Pool { current: 0, max: 0 },
             level: 2,
             strength: 3,
             dexterity: 1,

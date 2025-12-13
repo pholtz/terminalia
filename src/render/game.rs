@@ -156,16 +156,27 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
     let mut player_mp: String = "".to_string();
     let mut player_mp_remaining: String = "".to_string();
     let mut player_mp_total: String = "".to_string();
+    let mut player_exp: String = "".to_string();
+    let mut player_exp_fill = "".to_string();
+    let mut player_exp_empty = "".to_string();
     match (stats.get(*player), inventory.get(*player), names.get(*player)) {
         (Some(stats), Some(_inventory), Some(name)) => {
             player_name = name.name.clone();
+            
             player_hp = format!("HP: {} / {} ", stats.hp.current, stats.hp.max);
             let hp_bar_remaining = ((stats.hp.current as f64 / stats.hp.max as f64) * (25 as f64)).round() as usize;
             player_hp_remaining = " ".repeat(hp_bar_remaining);
             player_hp_total = " ".repeat(25 - hp_bar_remaining);
+            
             player_mp = "MP: 10 / 10 ".to_string();
             player_mp_remaining = " ".repeat(20);
             player_mp_total = " ".repeat(5);
+
+            player_exp = format!("Level: {}", stats.level);
+            player_exp_fill = " ".repeat(
+                ((stats.exp.current as f64 / stats.exp.max as f64) * (25 as f64)).round() as usize
+            );
+            player_exp_empty = " ".repeat(25 - player_exp_fill.len());
         },
         _ => {},
     }
@@ -241,15 +252,20 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                 Line::from(player_name),
                 Line::from(Span::styled(player_floor, Style::new().fg(Color::Gray))),
                 Line::from(vec![
-                    Span::styled(player_hp, Style::new().fg(Color::LightRed)),
+                    Span::styled(format!("{:12}", player_hp), Style::new().fg(Color::LightRed)),
                     Span::styled(player_hp_remaining, Style::new().bg(Color::Red)),
                     Span::styled(player_hp_total, Style::new().bg(Color::Rgb(60, 0, 0))),
                 ]),
                 Line::from(vec![
-                    Span::styled(player_mp, Style::new().fg(Color::Blue)),
+                    Span::styled(format!("{:12}", player_mp), Style::new().fg(Color::Blue)),
                     Span::styled(player_mp_remaining, Style::new().bg(Color::Blue)),
                     Span::styled(player_mp_total, Style::new().bg(Color::Rgb(0, 0, 60))),
                 ]),
+                Line::from(vec![
+                    Span::styled(format!("{:12}", player_exp), Style::new().fg(Color::LightMagenta)),
+                    Span::styled(player_exp_fill, Style::new().bg(Color::LightMagenta)),
+                    Span::styled(player_exp_empty, Style::new().bg(Color::Rgb(60, 60, 60))),
+                ])
             ]))
             .block(Block::new().borders(Borders::NONE)),
         right_vertical_layout[0]
