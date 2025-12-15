@@ -9,7 +9,7 @@ use rltk::Point;
 use specs::prelude::*;
 
 use crate::{
-    RunState, component::{Hidden, Inventory, Item, Name, Position, Renderable, Stats}, generate::map::{Map, TileType}, logbook::logbook::format_text
+    RunState, component::{Hidden, Inventory, Item, Name, Pool, Position, Renderable, Stats}, generate::map::{Map, TileType}, logbook::logbook::format_text
 };
 
 pub const VIEW_WIDTH: i32 = 80;
@@ -148,38 +148,9 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
     /*
      * Format the status bar with health, gold, etc.
      */
-    let mut player_name: String = "?".to_string();
+    let player_name: String = names.get(*player).expect("Unable to fetch player name").name.clone();
     let player_floor = format!("Floor: {}", floor_index);
-    let mut player_hp: String = "".to_string();
-    let mut player_hp_remaining: String = "".to_string();
-    let mut player_hp_total: String = "".to_string();
-    let mut player_mp: String = "".to_string();
-    let mut player_mp_remaining: String = "".to_string();
-    let mut player_mp_total: String = "".to_string();
-    let mut player_exp: String = "".to_string();
-    let mut player_exp_fill = "".to_string();
-    let mut player_exp_empty = "".to_string();
-    match (stats.get(*player), inventory.get(*player), names.get(*player)) {
-        (Some(stats), Some(_inventory), Some(name)) => {
-            player_name = name.name.clone();
-            
-            player_hp = format!("HP: {} / {} ", stats.hp.current, stats.hp.max);
-            let hp_bar_remaining = ((stats.hp.current as f64 / stats.hp.max as f64) * (25 as f64)).round() as usize;
-            player_hp_remaining = " ".repeat(hp_bar_remaining);
-            player_hp_total = " ".repeat(25 - hp_bar_remaining);
-            
-            player_mp = "MP: 10 / 10 ".to_string();
-            player_mp_remaining = " ".repeat(20);
-            player_mp_total = " ".repeat(5);
-
-            player_exp = format!("Level: {}", stats.level);
-            player_exp_fill = " ".repeat(
-                ((stats.exp.current as f64 / stats.exp.max as f64) * (25 as f64)).round() as usize
-            );
-            player_exp_empty = " ".repeat(25 - player_exp_fill.len());
-        },
-        _ => {},
-    }
+    let pools = format_pools(&player, stats, inventory).expect("Unable to format player pools!");
 
     /*
      * Fetch and truncate the most recent logbook entries,
@@ -252,22 +223,65 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                 Line::from(player_name),
                 Line::from(Span::styled(player_floor, Style::new().fg(Color::Gray))),
                 Line::from(vec![
-                    Span::styled(format!("{:12}", player_hp), Style::new().fg(Color::LightRed)),
-                    Span::styled(player_hp_remaining, Style::new().bg(Color::Red)),
-                    Span::styled(player_hp_total, Style::new().bg(Color::Rgb(60, 0, 0))),
+                    Span::styled(format!("{:12}", pools.hp.1), Style::new().fg(Color::LightRed)),
+                    Span::styled(pools.hp.2, Style::new().bg(Color::Red)),
+                    Span::styled(pools.hp.3, Style::new().bg(Color::Rgb(60, 0, 0))),
                 ]),
                 Line::from(vec![
-                    Span::styled(format!("{:12}", player_mp), Style::new().fg(Color::Blue)),
-                    Span::styled(player_mp_remaining, Style::new().bg(Color::Blue)),
-                    Span::styled(player_mp_total, Style::new().bg(Color::Rgb(0, 0, 60))),
+                    Span::styled(format!("{:12}", pools.mp.1), Style::new().fg(Color::Blue)),
+                    Span::styled(pools.mp.2, Style::new().bg(Color::Blue)),
+                    Span::styled(pools.mp.3, Style::new().bg(Color::Rgb(0, 0, 60))),
                 ]),
                 Line::from(vec![
-                    Span::styled(format!("{:12}", player_exp), Style::new().fg(Color::LightMagenta)),
-                    Span::styled(player_exp_fill, Style::new().bg(Color::LightMagenta)),
-                    Span::styled(player_exp_empty, Style::new().bg(Color::Rgb(60, 60, 60))),
+                    Span::styled(format!("{:12}", pools.exp.1), Style::new().fg(Color::LightMagenta)),
+                    Span::styled(pools.exp.2, Style::new().bg(Color::LightMagenta)),
+                    Span::styled(pools.exp.3, Style::new().bg(Color::Rgb(60, 60, 60))),
                 ])
             ]))
             .block(Block::new().borders(Borders::NONE)),
         right_vertical_layout[0]
     );
+}
+
+/**
+ * The pool itself, followed by formatted strings:
+ * - the numeric representation (HP 10 / 30)
+ * - the filled bar portion (####)
+ * - the unfilled bar portion (____)
+ */
+pub struct FormattedPools {
+    pub hp: (Pool, String, String, String),
+    pub mp: (Pool, String, String, String),
+    pub exp: (Pool, String, String, String),
+}
+
+/*
+ * Format the status bar with health, gold, etc.
+ */
+pub fn format_pools(player: &Entity, stats: ReadStorage<Stats>, inventory: ReadStorage<Inventory>) -> Option<FormattedPools> {
+    return match (stats.get(*player), inventory.get(*player)) {
+        (Some(stats), Some(_inventory)) => {
+            let player_hp = format!("HP: {} / {} ", stats.hp.current, stats.hp.max);
+            let hp_bar_remaining = ((stats.hp.current as f64 / stats.hp.max as f64) * (25 as f64)).round() as usize;
+            let player_hp_remaining = " ".repeat(hp_bar_remaining);
+            let player_hp_total = " ".repeat(25 - hp_bar_remaining);
+            
+            let player_mp = "MP: 10 / 10 ".to_string();
+            let player_mp_remaining = " ".repeat(20);
+            let player_mp_total = " ".repeat(5);
+
+            let player_exp = format!("Level: {}", stats.level);
+            let player_exp_fill = " ".repeat(
+                ((stats.exp.current as f64 / stats.exp.max as f64) * (25 as f64)).round() as usize
+            );
+            let player_exp_empty = " ".repeat(25 - player_exp_fill.len());
+
+            Some(FormattedPools {
+                hp: (stats.hp.clone(), player_hp, player_hp_remaining, player_hp_total),
+                mp: (stats.mp.clone(), player_mp, player_mp_remaining, player_mp_total),
+                exp: (stats.exp.clone(), player_exp, player_exp_fill, player_exp_empty),
+            })
+        },
+        _ => None,
+    }
 }

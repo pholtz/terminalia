@@ -1,13 +1,13 @@
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout},
-    style::{Modifier, Style, palette::tailwind::SLATE},
-    text::{Line, Text},
+    style::{Color, Modifier, Style, palette::tailwind::SLATE},
+    text::{Line, Span, Text},
     widgets::{Block, Borders, List, ListItem, ListState, Padding, Paragraph},
 };
 use specs::prelude::*;
 
-use crate::component::{Equipped, Inventory, Item, Name};
+use crate::{component::{Equipped, Inventory, Item, Name, Stats}, render::game::format_pools};
 
 /**
  * This render function fires when the player is ingame and viewing their inventory.
@@ -21,10 +21,15 @@ pub fn render_inventory(ecs: &mut World, frame: &mut Frame) {
     let items = ecs.read_storage::<Item>();
     let equipment = ecs.read_storage::<Equipped>();
     let names = ecs.read_storage::<Name>();
+    let stats = ecs.read_storage::<Stats>();
 
     let inventory = inventories
         .get(*player_entity)
         .expect("Unable to retrieve the player's inventory!");
+
+    let stat = stats
+        .get(*player_entity)
+        .expect("Unable to retrieve the player's stats!");
 
     let name = names
         .get(*player_entity)
@@ -74,6 +79,8 @@ pub fn render_inventory(ecs: &mut World, frame: &mut Frame) {
         state.select(Some(inventory.index));
     }
 
+    let pools = format_pools(&player_entity, stats.clone(), inventories).expect("Unable to format player pools!");
+
     let root_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -107,6 +114,29 @@ pub fn render_inventory(ecs: &mut World, frame: &mut Frame) {
     frame.render_widget(
         Paragraph::new(Text::from(vec![
             Line::from(name.name.clone()),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled(format!("{:12}", pools.hp.1), Style::new().fg(Color::LightRed)),
+                Span::styled(pools.hp.2, Style::new().bg(Color::Red)),
+                Span::styled(pools.hp.3, Style::new().bg(Color::Rgb(60, 0, 0))),
+            ]),
+            Line::from(vec![
+                Span::styled(format!("{:12}", pools.mp.1), Style::new().fg(Color::Blue)),
+                Span::styled(pools.mp.2, Style::new().bg(Color::Blue)),
+                Span::styled(pools.mp.3, Style::new().bg(Color::Rgb(0, 0, 60))),
+            ]),
+            Line::from(vec![
+                Span::styled(format!("{:12}", pools.exp.1), Style::new().fg(Color::LightMagenta)),
+                Span::styled(pools.exp.2, Style::new().bg(Color::LightMagenta)),
+                Span::styled(pools.exp.3, Style::new().bg(Color::Rgb(60, 60, 60))),
+            ]),
+            Line::from(""),
+            Line::from(format!("Strength: {}", stat.strength)),
+            Line::from(format!("Dexterity: {}", stat.dexterity)),
+            Line::from(format!("Constitution: {}", stat.constitution)),
+            Line::from(format!("Intelligence: {}", stat.intelligence)),
+            Line::from(format!("Wisdom: {}", stat.wisdom)),
+            Line::from(format!("Charisma: {}", stat.charisma)),
         ])).block(
             Block::new()
                 .title("Character")
