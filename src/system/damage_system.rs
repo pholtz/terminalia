@@ -1,7 +1,7 @@
 use ratatui::style::Color;
 use specs::prelude::*;
 
-use crate::{Damage, Name, Player, Stats, component::{Monster, Position}, generate::map::Map, logbook::logbook::Logger};
+use crate::{Damage, Name, Player, Stats, component::{Experience, Monster, Position}, generate::map::Map, logbook::logbook::Logger};
 
 pub struct DamageSystem {}
 
@@ -11,6 +11,7 @@ impl <'a> System<'a> for DamageSystem {
         WriteStorage<'a, Stats>,
         WriteStorage<'a, Damage>,
         ReadStorage<'a, Position>,
+        WriteStorage<'a, Experience>,
         WriteExpect<'a, Map>,
     );
 
@@ -20,11 +21,16 @@ impl <'a> System<'a> for DamageSystem {
             mut stats,
             mut damage,
             positions,
+            mut experience,
             mut map,
         ) = data;
 
         for (entity, stats, damage) in (&entities, &mut stats, &damage).join() {
             stats.hp.current -= damage.amount.iter().sum::<i32>();
+
+            if stats.hp.current <= 0 && damage.attacker.is_some() {
+                Experience::new(&mut experience, damage.attacker.unwrap(), stats.level * 100);
+            }
 
             /*
              * Render bloodstains anywhere damage occurred

@@ -26,9 +26,7 @@ use system::{
 
 use crate::{
     component::{
-        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Hidden, InBackpack, Inventory,
-        Item, Lifetime, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion,
-        Renderable, Stats, Triggerable, Viewshed, WantsToConsumeItem, WantsToPickupItem,
+        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack, Inventory, Item, Lifetime, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, Renderable, Stats, Triggerable, Viewshed, WantsToConsumeItem, WantsToPickupItem
     },
     damage_system::DamageSystem,
     generate::generator::{generate_floor, reset_floor},
@@ -41,7 +39,7 @@ use crate::{
     melee_combat_system::MeleeCombatSystem,
     monster_system::MonsterSystem,
     render::{game::render_game, log::render_log, quit::render_quit},
-    system::{particle_system::ParticleSystem, trigger_system::TriggerSystem},
+    system::{experience_system::ExperienceSystem, particle_system::ParticleSystem, trigger_system::TriggerSystem},
     visibility_system::VisibilitySystem,
 };
 
@@ -235,6 +233,7 @@ fn reinitialize_world() -> World {
     world.register::<Inventory>();
     world.register::<Attack>();
     world.register::<Damage>();
+    world.register::<Experience>();
     world.register::<Item>();
     world.register::<Potion>();
     world.register::<MagicMapper>();
@@ -268,6 +267,7 @@ fn reinitialize_systems(world: &mut World) -> Dispatcher<'static, 'static> {
             &["map_indexing_system"],
         )
         .with(DamageSystem {}, "damage_system", &["melee_combat_system"])
+        .with(ExperienceSystem {}, "experience_system", &["melee_combat_system"])
         .with(
             ParticleSystem {},
             "particle_system",

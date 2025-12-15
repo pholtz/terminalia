@@ -1,4 +1,5 @@
 pub mod damage_system;
+pub mod experience_system;
 pub mod inventory_system;
 pub mod map_indexing_system;
 pub mod melee_combat_system;

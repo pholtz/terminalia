@@ -56,7 +56,7 @@ impl<'a> System<'a> for TriggerSystem {
                         .with_color(Color::Red)
                         .append(format!("{} damage!", trigger.damage))
                         .log();
-                    Damage::new_damage(&mut damages, entity, trigger.damage);
+                    Damage::new_damage(&mut damages, None, entity, trigger.damage);
                     hidden.remove(*colocated_entity);
                     particles_to_create.push(position.clone());
                     entities_to_remove.push(*colocated_entity);

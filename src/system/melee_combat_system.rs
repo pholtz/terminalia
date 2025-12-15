@@ -87,7 +87,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
                             &name.name, &target_name.name, damage_inflicted
                         ))
                         .log();
-                    Damage::new_damage(&mut damages, attack.target, damage_inflicted);
+                    Damage::new_damage(&mut damages, Some(attacker_entity), attack.target, damage_inflicted);
 
                     /*
                      * Create combat particle representing an attack animation.

@@ -141,10 +141,11 @@ pub struct Attack {
 #[derive(Component)]
 pub struct Damage {
     pub amount: Vec<i32>,
+    pub attacker: Option<Entity>,
 }
 
 impl Damage {
-    pub fn new_damage(store: &mut WriteStorage<Damage>, victim: Entity, amount: i32) {
+    pub fn new_damage(store: &mut WriteStorage<Damage>, attacker: Option<Entity>, victim: Entity, amount: i32) {
         if let Some(damage) = store.get_mut(victim) {
             damage.amount.push(amount);
         } else {
@@ -153,9 +154,25 @@ impl Damage {
                     victim,
                     Damage {
                         amount: vec![amount],
+                        attacker: attacker,
                     },
                 )
                 .expect("Unable to insert damage");
+        }
+    }
+}
+
+#[derive(Component, Debug)]
+pub struct Experience {
+    pub amount: Vec<i32>
+}
+
+impl Experience {
+    pub fn new(store: &mut WriteStorage<Experience>, recipient: Entity, amount: i32) {
+        if let Some(experience) = store.get_mut(recipient) {
+            experience.amount.push(amount);
+        } else {
+            store.insert(recipient, Experience { amount: vec![amount] }).expect("Unable to award experience");
         }
     }
 }
