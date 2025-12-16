@@ -19,6 +19,13 @@ pub enum TileType {
     UpStairs,
 }
 
+pub struct MapOptions {
+    pub width: i32,
+    pub height: i32,
+    pub has_upstairs: bool,
+    pub has_downstairs: bool,
+}
+
 pub struct Map {
     pub tiles: Vec<TileType>,
     pub tile_content: Vec<Vec<Entity>>,
@@ -97,7 +104,10 @@ impl Map {
         }
     }
     
-    pub fn new_map_dynamic_rooms_and_corridors(rng: &mut RandomNumberGenerator, width: i32, height: i32) -> Map {
+    pub fn new_map_dynamic_rooms_and_corridors(rng: &mut RandomNumberGenerator, options: MapOptions) -> Map {
+        let width: usize = options.width as usize;
+        let height: usize = options.height as usize;
+
         let mut map = Map {
             tiles: vec![TileType::Wall; (width as usize) * (height as usize)],
             tile_content: vec![Vec::new(); (width as usize) * (height as usize)],
@@ -105,8 +115,8 @@ impl Map {
             blocked_tiles: vec![false; (width as usize) * (height as usize)],
             bloodstains: HashSet::new(),
             rooms: Vec::new(),
-            width: width,
-            height: height,
+            width: options.width,
+            height: options.height,
         };
     
         for _ in 0..MAX_ROOMS {
@@ -137,13 +147,17 @@ impl Map {
             }
         }
 
-        let (upstair_x, upstair_y) = map.rooms[0].center();
-        let upstair_index = map.xy_idx(upstair_x, upstair_y);
-        map.tiles[upstair_index] = TileType::UpStairs;
+        if options.has_upstairs {
+            let (upstair_x, upstair_y) = map.rooms[0].center();
+            let upstair_index = map.xy_idx(upstair_x, upstair_y);
+            map.tiles[upstair_index] = TileType::UpStairs;
+        }
 
-        let (downstair_x, downstair_y) = map.rooms[map.rooms.len() - 1].center();
-        let downstair_index = map.xy_idx(downstair_x, downstair_y);
-        map.tiles[downstair_index] = TileType::DownStairs;
+        if options.has_downstairs {
+            let (downstair_x, downstair_y) = map.rooms[map.rooms.len() - 1].center();
+            let downstair_index = map.xy_idx(downstair_x, downstair_y);
+            map.tiles[downstair_index] = TileType::DownStairs;
+        }
 
         return map;
     }

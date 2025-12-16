@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use rand::Rng;
 
-use crate::{App, RootScreen, RunState, generate::generator::generate_floor, reinitialize_world};
+use crate::{App, RootScreen, RunState, Screen, generate::generator::generate_floor, logbook::{logbook::{self, Logger}}, reinitialize_world};
 
 pub fn handle_menu_key_event(app: &mut App, key_event: KeyEvent) -> Option<RunState> {
     match key_event.code {
@@ -25,6 +25,9 @@ pub fn handle_menu_key_event(app: &mut App, key_event: KeyEvent) -> Option<RunSt
                 app.ecs = reinitialize_world();
                 generate_floor(rand::rng().random(), 0, &mut app.ecs);
                 app.root_screen = RootScreen::Main;
+                app.screen = Screen::Explore;
+                logbook::clear();
+                Logger::new().append("You begin your adventure in a smallish room...").log();
             }
             1 => app.exit(),
             _ => {}

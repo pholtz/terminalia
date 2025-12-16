@@ -2,8 +2,8 @@ use std::ops::Deref;
 
 use crate::{
     Player, Position, RunState, component::InBackpack, generate::{
-        map::Map, spawn::{spawn_player, spawn_weighted_item, spawn_weighted_monster}
-    }, logbook::{logbook::Logger}
+        map::{Map, MapOptions}, spawn::{spawn_player, spawn_weighted_item, spawn_weighted_monster}
+    }, logbook::logbook::Logger
 };
 use rltk::{Point, RandomNumberGenerator};
 use specs::prelude::*;
@@ -45,7 +45,12 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
         world.insert(rng.clone());
     }
 
-    let map = Map::new_map_dynamic_rooms_and_corridors(&mut rng, 100, 100);
+    let map = Map::new_map_dynamic_rooms_and_corridors(&mut rng, MapOptions {
+        width: 100,
+        height: 100,
+        has_upstairs: floor_index != 0,
+        has_downstairs: true,
+    });
     let (player_x, player_y) = map.rooms[0].center();
 
     // Update the player position to ensure that existing entities are relocated
@@ -73,9 +78,5 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
     if !world.has_value::<Entity>() {
         let player = spawn_player(world, player_x, player_y);
         world.insert(player);
-    }
-
-    if floor_index == 0 {
-        Logger::new().append("You begin your adventure in a smallish room...").log();
     }
 }
