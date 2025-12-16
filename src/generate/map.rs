@@ -13,7 +13,10 @@ pub const MAX_ROOMS: i32 = 30;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum TileType {
-    Wall, Floor, DownStairs
+    Wall,
+    Floor,
+    DownStairs,
+    UpStairs,
 }
 
 pub struct Map {
@@ -134,9 +137,13 @@ impl Map {
             }
         }
 
-        let (stair_x, stair_y) = map.rooms[map.rooms.len() - 1].center();
-        let index = map.xy_idx(stair_x, stair_y);
-        map.tiles[index] = TileType::DownStairs;
+        let (upstair_x, upstair_y) = map.rooms[0].center();
+        let upstair_index = map.xy_idx(upstair_x, upstair_y);
+        map.tiles[upstair_index] = TileType::UpStairs;
+
+        let (downstair_x, downstair_y) = map.rooms[map.rooms.len() - 1].center();
+        let downstair_index = map.xy_idx(downstair_x, downstair_y);
+        map.tiles[downstair_index] = TileType::DownStairs;
 
         return map;
     }

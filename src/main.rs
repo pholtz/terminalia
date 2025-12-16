@@ -82,6 +82,7 @@ pub enum RunState {
     PlayerTurn,
     MonsterTurn,
     Descending,
+    Ascending,
 }
 
 pub struct App {
@@ -132,7 +133,13 @@ impl App {
                             reset_floor(&mut self.ecs);
                             generate_floor(rand::rng().random(), self.floor_index, &mut self.ecs);
                             next_runstate = RunState::AwaitingInput;
-                        }
+                        },
+                        RunState::Ascending => {
+                            self.floor_index -= 1;
+                            reset_floor(&mut self.ecs);
+                            generate_floor(rand::rng().random(), self.floor_index, &mut self.ecs);
+                            next_runstate = RunState::AwaitingInput;
+                        },
                     }
 
                     /*

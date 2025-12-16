@@ -74,6 +74,7 @@ pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_even
             return None;
         }
         KeyCode::Char('.') => try_next_level(&mut app.ecs),
+        KeyCode::Char(',') => try_prev_level(&mut app.ecs),
         KeyCode::Char('q') => {
             app.screen = Screen::Log;
             return None;
@@ -171,6 +172,18 @@ fn try_next_level(ecs: &mut World) -> Option<RunState> {
     if map.tiles[player_index] == TileType::DownStairs {
         *runstate = RunState::Descending;
         return Some(RunState::Descending);
+    }
+    return None;
+}
+
+fn try_prev_level(ecs: &mut World) -> Option<RunState> {
+    let mut runstate = ecs.write_resource::<RunState>();
+    let map = ecs.read_resource::<Map>();
+    let player_position = ecs.read_resource::<Point>();
+    let player_index = map.xy_idx(player_position.x, player_position.y);
+    if map.tiles[player_index] == TileType::UpStairs {
+        *runstate = RunState::Ascending;
+        return Some(RunState::Ascending);
     }
     return None;
 }

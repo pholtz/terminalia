@@ -74,7 +74,8 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                 span = match map.tiles[map_index] {
                     TileType::Floor => Span::styled(".", Style::default().fg(Color::Gray)),
                     TileType::Wall => Span::styled("#", Style::default().fg(Color::Green)),
-                    TileType::DownStairs => Span::styled("目", Style::default().fg(Color::Yellow))
+                    TileType::DownStairs => Span::styled(">", Style::default().fg(Color::Yellow)),
+                    TileType::UpStairs => Span::styled("<", Style::default().fg(Color::Yellow)),
                 }                
             } else {
                 span = Span::styled(" ", Style::default());
