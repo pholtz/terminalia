@@ -7,7 +7,7 @@ use ratatui::{
 };
 use specs::prelude::*;
 
-use crate::{component::{Equipped, Inventory, Item, Name, Stats}, render::game::format_pools};
+use crate::{RunState, component::{Equipped, Inventory, Item, Name, Stats}, render::game::format_pools};
 
 /**
  * This render function fires when the player is ingame and viewing their inventory.
@@ -15,7 +15,7 @@ use crate::{component::{Equipped, Inventory, Item, Name, Stats}, render::game::f
  * Render the players current inventory using the `Inventory` component on the player entity.
  * Includes the quantity per held item as well as any relevant equipment stats or descriptions.
  */
-pub fn render_inventory(ecs: &mut World, frame: &mut Frame) {
+pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) {
     let player_entity = ecs.fetch::<Entity>();
     let inventories = ecs.read_storage::<Inventory>();
     let items = ecs.read_storage::<Item>();
@@ -81,6 +81,13 @@ pub fn render_inventory(ecs: &mut World, frame: &mut Frame) {
 
     let pools = format_pools(&player_entity, stats.clone(), inventories).expect("Unable to format player pools!");
 
+    let fstat = format_stats(stat, runstate);
+
+    let attribute_title = match runstate {
+        RunState::LevelUp { index: _ } => "Level Up! Select an attribute to increase.",
+        _ => "Attributes"
+    };
+
     let root_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -113,7 +120,10 @@ pub fn render_inventory(ecs: &mut World, frame: &mut Frame) {
 
     frame.render_widget(
         Paragraph::new(Text::from(vec![
-            Line::from(name.name.clone()),
+            Line::from(Span::styled(
+                name.name.clone(),
+                Style::new().add_modifier(Modifier::ITALIC),
+            )),
             Line::from(""),
             Line::from(vec![
                 Span::styled(format!("{:12}", pools.hp.1), Style::new().fg(Color::LightRed)),
@@ -131,12 +141,16 @@ pub fn render_inventory(ecs: &mut World, frame: &mut Frame) {
                 Span::styled(pools.exp.3, Style::new().bg(Color::Rgb(60, 60, 60))),
             ]),
             Line::from(""),
-            Line::from(format!("Strength: {}", stat.strength)),
-            Line::from(format!("Dexterity: {}", stat.dexterity)),
-            Line::from(format!("Constitution: {}", stat.constitution)),
-            Line::from(format!("Intelligence: {}", stat.intelligence)),
-            Line::from(format!("Wisdom: {}", stat.wisdom)),
-            Line::from(format!("Charisma: {}", stat.charisma)),
+            Line::from(Span::styled(
+                attribute_title,
+                Style::new().fg(Color::White).add_modifier(Modifier::BOLD),
+            )),
+            Line::from(Span::styled(fstat.strength.0, fstat.strength.1)),
+            Line::from(Span::styled(fstat.dexterity.0, fstat.dexterity.1)),
+            Line::from(Span::styled(fstat.constitution.0, fstat.constitution.1)),
+            Line::from(Span::styled(fstat.intelligence.0, fstat.intelligence.1)),
+            Line::from(Span::styled(fstat.wisdom.0, fstat.wisdom.1)),
+            Line::from(Span::styled(fstat.charisma.0, fstat.charisma.1)),
         ])).block(
             Block::new()
                 .title("Character")
@@ -146,4 +160,55 @@ pub fn render_inventory(ecs: &mut World, frame: &mut Frame) {
         ),
         character_layout[0],
     );
+}
+
+pub struct FormattedStats {
+    strength: (String, Style),
+    dexterity: (String, Style),
+    constitution: (String, Style),
+    intelligence: (String, Style),
+    wisdom: (String, Style),
+    charisma: (String, Style),
+}
+
+fn format_stats(stat: &Stats, runstate: RunState) -> FormattedStats {
+    let mut formatted = FormattedStats {
+        strength: (format!("Strength: {}", stat.strength), Style::default()),
+        dexterity: (format!("Dexterity: {}", stat.dexterity), Style::default()),
+        constitution: (format!("Constitution: {}", stat.constitution), Style::default()),
+        intelligence: (format!("Intelligence: {}", stat.intelligence), Style::default()),
+        wisdom: (format!("Wisdom: {}", stat.wisdom), Style::default()),
+        charisma: (format!("Charisma: {}", stat.charisma), Style::default()),
+    };
+
+    if let RunState::LevelUp { index } = runstate {
+        match index {
+            0 => formatted.strength = (
+                format!("Strength: {} -> {}", stat.strength, stat.strength + 1),
+                Style::new().fg(Color::DarkGray).bg(Color::Yellow).add_modifier(Modifier::BOLD),
+            ),
+            1 => formatted.dexterity = (
+                format!("Dexterity: {} -> {}", stat.dexterity, stat.dexterity + 1),
+                Style::new().fg(Color::DarkGray).bg(Color::Yellow).add_modifier(Modifier::BOLD),
+            ),
+            2 => formatted.constitution = (
+                format!("Constitution: {} -> {}", stat.constitution, stat.constitution + 1),
+                Style::new().fg(Color::DarkGray).bg(Color::Yellow).add_modifier(Modifier::BOLD),
+            ),
+            3 => formatted.intelligence = (
+                format!("Intelligence: {} -> {}", stat.intelligence, stat.intelligence + 1),
+                Style::new().fg(Color::DarkGray).bg(Color::Yellow).add_modifier(Modifier::BOLD),
+            ),
+            4 => formatted.wisdom = (
+                format!("Wisdom: {} -> {}", stat.wisdom, stat.wisdom + 1),
+                Style::new().fg(Color::DarkGray).bg(Color::Yellow).add_modifier(Modifier::BOLD),
+            ),
+            5 => formatted.charisma = (
+                format!("Charisma: {} -> {}", stat.charisma, stat.charisma + 1),
+                Style::new().fg(Color::DarkGray).bg(Color::Yellow).add_modifier(Modifier::BOLD),
+            ),
+            _ => {}
+        }
+    }
+    return formatted;
 }

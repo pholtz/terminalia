@@ -2,8 +2,7 @@ use ratatui::style::Color;
 use specs::prelude::*;
 
 use crate::{
-    component::{Experience, Name, Pool, Stats},
-    logbook::logbook::Logger,
+    component::{Experience, Name, Pool, Stats}, effect::effect::{Effect, EffectType, create_effect}, logbook::logbook::Logger
 };
 
 pub struct ExperienceSystem {}
@@ -19,7 +18,7 @@ impl<'a> System<'a> for ExperienceSystem {
     fn run(&mut self, data: Self::SystemData) {
         let (entities, names, mut stats, mut experience) = data;
 
-        for (_entity, name, stat, experience) in (&entities, &names, &mut stats, &experience).join()
+        for (entity, name, stat, experience) in (&entities, &names, &mut stats, &experience).join()
         {
             let exp = stat.exp.current + experience.amount.iter().sum::<i32>();
             if exp >= stat.exp.max {
@@ -28,6 +27,10 @@ impl<'a> System<'a> for ExperienceSystem {
                     max: stat.level * 1_000,
                 };
                 stat.level += 1;
+                create_effect(Effect {
+                    creator: Some(entity),
+                    effect_type: EffectType::LevelUp { level: stat.level },
+                });
                 Logger::new()
                     .append_with_color(
                         Color::Yellow,

@@ -9,6 +9,7 @@ use simplelog::{CombinedLogger, Config, WriteLogger};
 use specs::prelude::*;
 
 mod component;
+mod effect;
 mod generate;
 mod input;
 mod logbook;
@@ -27,20 +28,10 @@ use system::{
 use crate::{
     component::{
         Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack, Inventory, Item, Lifetime, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, Renderable, Stats, Triggerable, Viewshed, WantsToConsumeItem, WantsToPickupItem
-    },
-    damage_system::DamageSystem,
-    generate::generator::{generate_floor, reset_floor},
-    input::{
+    }, damage_system::DamageSystem, effect::effect::process_effects, generate::generator::{generate_floor, reset_floor}, input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
         main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event, main_quit::handle_main_quit_key_event,
-    },
-    inventory_system::InventorySystem,
-    map_indexing_system::MapIndexingSystem,
-    melee_combat_system::MeleeCombatSystem,
-    monster_system::MonsterSystem,
-    render::{game::render_game, log::render_log, quit::render_quit},
-    system::{experience_system::ExperienceSystem, particle_system::ParticleSystem, trigger_system::TriggerSystem},
-    visibility_system::VisibilitySystem,
+    }, inventory_system::InventorySystem, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, render::{game::render_game, log::render_log, quit::render_quit}, system::{experience_system::ExperienceSystem, particle_system::ParticleSystem, trigger_system::TriggerSystem}, visibility_system::VisibilitySystem
 };
 
 #[derive(Debug)]
@@ -79,6 +70,7 @@ pub enum Screen {
 pub enum RunState {
     AwaitingInput,
     Examining { index: usize },
+    LevelUp { index: usize },
     PlayerTurn,
     MonsterTurn,
     Descending,
@@ -124,8 +116,9 @@ impl App {
                 RootScreen::GameOver => {}
                 RootScreen::Main => {
                     match self.runstate {
-                        RunState::AwaitingInput => {}
-                        RunState::Examining { index: _index } => {}
+                        RunState::AwaitingInput => {},
+                        RunState::Examining { index: _ } => {},
+                        RunState::LevelUp { index: _ }=> {},
                         RunState::PlayerTurn => next_runstate = RunState::MonsterTurn,
                         RunState::MonsterTurn => next_runstate = RunState::AwaitingInput,
                         RunState::Descending => {
@@ -157,6 +150,7 @@ impl App {
                         self.root_screen = RootScreen::GameOver;
                     }
                     damage_system::cleanup_dead_entities(&mut self.ecs);
+                    process_effects(self);
                 }
             }
             self.ecs.maintain();
@@ -215,7 +209,7 @@ impl App {
                     render_game(&mut self.ecs, frame, self.floor_index, self.terminal)
                 }
                 Screen::Log => render_log(&mut self.ecs, frame),
-                Screen::Inventory => render_inventory(&mut self.ecs, frame),
+                Screen::Inventory => render_inventory(&mut self.ecs, self.runstate, frame),
                 Screen::Quit { quit } => render_quit(&mut self.ecs, quit, frame),
             },
             RootScreen::GameOver => render_game_over(frame),

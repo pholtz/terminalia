@@ -29,7 +29,7 @@ impl <'a> System<'a> for DamageSystem {
             stats.hp.current -= damage.amount.iter().sum::<i32>();
 
             if stats.hp.current <= 0 && damage.attacker.is_some() {
-                Experience::new(&mut experience, damage.attacker.unwrap(), stats.level * 100);
+                Experience::new(&mut experience, damage.attacker.unwrap(), stats.level * 1_000);
             }
 
             /*
