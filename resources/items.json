@@ -1,0 +1,31 @@
+[
+    {
+        "name": "Potion of pathetically minor healing",
+        "description": "A glowing red vial of an unknown substance. Smells delicious.",
+        "renderable": {
+            "glyph": "i",
+            "fg": "#00FFFF",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 0,
+            "base_weight": 25
+        },
+        "potion": {
+            "heal_amount": 10
+        }
+    },
+    {
+        "name": "Scroll of magic mapping",
+        "description": "An ancient looking, mysterious scroll that glows with a faint white light. Undecipherable.",
+        "renderable": {
+            "glyph": "]",
+            "fg": "#FF80FF",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 0,
+            "base_weight": 5
+        }
+    }
+]

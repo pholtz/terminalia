@@ -30,6 +30,13 @@ impl RandomTable {
         self
     }
 
+    pub fn push<S:ToString>(&mut self, name : S, weight: i32) {
+        if weight > 0 {
+            self.total_weight += weight;
+            self.entries.push(RandomEntry::new(name.to_string(), weight));
+        }
+    }
+
     pub fn roll(&self, rng : &mut RandomNumberGenerator) -> String {
         if self.total_weight == 0 { return "None".to_string(); }
         let mut roll = rng.roll_dice(1, self.total_weight)-1;

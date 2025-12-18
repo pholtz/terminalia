@@ -1,11 +1,54 @@
+use std::{fs, sync::Mutex};
+
 use indexmap::IndexMap;
+use lazy_static::lazy_static;
 use ratatui::style::Color;
 use rltk::{RandomNumberGenerator};
+use serde::Deserialize;
 use specs::{prelude::*};
 
 use crate::{component::{
     Armor, BlocksTile, EquipmentSlot, Equippable, Hidden, Inventory, Item, MagicMapper, MeleeWeapon, Monster, Name, Player, Pool, Position, Potion, Renderable, Stats, Triggerable, Viewshed
 }, generate::{random_table::RandomTable, rect::Rect}};
+
+#[derive(Deserialize)]
+pub struct ItemResource {
+    pub name: String,
+    pub description: String,
+    pub renderable: Option<RenderableResource>,
+    pub spawn: Option<SpawnResource>,
+    pub potion: Option<PotionResource>,
+}
+
+#[derive(Deserialize)]
+pub struct RenderableResource {
+    pub glyph: String,
+    pub fg: Option<String>,
+    pub bg: Option<String>,
+    pub index: u8,
+}
+
+#[derive(Deserialize)]
+pub struct SpawnResource {
+    pub min_floor: i32,
+    pub base_weight: i32,
+}
+
+#[derive(Deserialize)]
+pub struct PotionResource {
+    pub heal_amount: i32,
+}
+
+lazy_static! {
+    pub static ref ITEMS: Mutex<Vec<ItemResource>> = Mutex::new(Vec::new());
+    pub static ref MONSTERS: Mutex<Vec<Item>> = Mutex::new(Vec::new());
+}
+
+pub fn initialize_resources() {
+    let items_raw = fs::read_to_string("./resources/items.json").unwrap();
+    let items: Vec<ItemResource> = serde_json::from_str(&items_raw).unwrap();
+    ITEMS.lock().unwrap().extend(items);
+}
 
 /// Spawns a weighted item based on the current floor and an internal spawn table.
 pub fn spawn_weighted_item(ecs: &mut World, floor_index: u32, room: &Rect) {
@@ -16,25 +59,77 @@ pub fn spawn_weighted_item(ecs: &mut World, floor_index: u32, room: &Rect) {
         let x = room.x1 + rng.roll_dice(1, width - 1);
         let y = room.y1 + rng.roll_dice(1, height - 1);
         let pos = Position { x: x, y: y };
-        let item_spawn_table = RandomTable::new()
-            .add("Health Potion", 25)
-            .add("Magic Mapping Scroll", 5)
-            .add("Dagger", 4 + floor_index as i32)
-            .add("Battered Shield", 6 + floor_index as i32)
-            .add("Basic Trap", 10 + floor_index as i32);
+
+        let mut item_spawn_table = RandomTable::new();
+        for item in ITEMS.lock().unwrap().iter() {
+            match &item.spawn {
+                Some(spawn) => { item_spawn_table.push(item.name.clone(), spawn.base_weight); },
+                None => {},
+            };
+        }
+        // let item_spawn_table = RandomTable::new()
+        //     .add("Health Potion", 25)
+        //     .add("Magic Mapping Scroll", 5)
+        //     .add("Dagger", 4 + floor_index as i32)
+        //     .add("Battered Shield", 6 + floor_index as i32)
+        //     .add("Basic Trap", 10 + floor_index as i32);
 
         (pos, item_spawn_table.roll(&mut rng))
     };
 
-    match spawn.as_ref() {
-        "Health Potion" => spawn_potion_health(ecs, pos),
-        "Magic Mapping Scroll" => spawn_scroll_magic_mapping(ecs, pos),
-        "Dagger" => spawn_dagger(ecs, pos),
-        "Battered Shield" => spawn_shield(ecs, pos),
-        "Basic Trap" => spawn_trap_basic(ecs, pos),
-        _ => {},
+    for item in ITEMS.lock().unwrap().iter() {
+        if item.name != spawn { continue }
+        let mut entity = ecs.create_entity()
+            .with(pos)
+            .with(Name { name: item.name.clone() })
+            .with(Item { description: item.description.clone() });
+        match &item.renderable {
+            Some(renderable) => {
+                entity = entity.with(Renderable {
+                    glyph: renderable.glyph.chars().next().unwrap_or('!'),
+                    fg: renderable.fg.clone()
+                        .map(|fg| color_from_hex(fg.as_str()).unwrap())
+                        .unwrap_or(Color::default()),
+                    bg: renderable.bg.clone()
+                        .map(|bg| color_from_hex(bg.as_str()).unwrap())
+                        .unwrap_or(Color::default()),
+                    index: renderable.index,
+                });
+            },
+            None => {},
+        }
+        match &item.potion {
+            Some(potion) => {
+                entity = entity.with(Potion {
+                    heal_amount: potion.heal_amount
+                });
+            },
+            None => {},
+        }
+        entity.build();
     }
+
+    // match spawn.as_ref() {
+    //     "Health Potion" => spawn_potion_health(ecs, pos),
+    //     "Magic Mapping Scroll" => spawn_scroll_magic_mapping(ecs, pos),
+    //     "Dagger" => spawn_dagger(ecs, pos),
+    //     "Battered Shield" => spawn_shield(ecs, pos),
+    //     "Basic Trap" => spawn_trap_basic(ecs, pos),
+    //     _ => {},
+    // }
 }
+
+fn color_from_hex(hex: &str) -> Result<Color, &'static str> {
+    let hex = hex.strip_prefix('#').ok_or("missing #")?;
+    if hex.len() != 6 {
+        return Err("invalid hex length");
+    }
+    let r = u8::from_str_radix(&hex[0..2], 16).map_err(|_| "bad red")?;
+    let g = u8::from_str_radix(&hex[2..4], 16).map_err(|_| "bad green")?;
+    let b = u8::from_str_radix(&hex[4..6], 16).map_err(|_| "bad blue")?;
+    Ok(Color::Rgb(r, g, b))
+}
+
 
 /// Spawns a weighted monster based on the current floor and internal spawn table.
 pub fn spawn_weighted_monster(ecs: &mut World, floor_index: u32, room: &Rect) {
