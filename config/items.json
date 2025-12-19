@@ -27,5 +27,24 @@
             "min_floor": 0,
             "base_weight": 5
         }
+    },
+    {
+        "name": "Shillelagh",
+        "description": "A wooden stick with a rounded handle at the top end. Looks like it could be useful for walking as well as self defense.",
+        "renderable": {
+            "glyph": "/",
+            "fg": "#FFFFFF",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 1,
+            "base_weight": 5
+        },
+        "equippable": {
+            "slot": "Weapon"
+        },
+        "melee_weapon": {
+            "damage": 3
+        }
     }
 ]

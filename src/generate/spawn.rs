@@ -12,16 +12,18 @@ use crate::{component::{
 }, generate::{random_table::RandomTable, rect::Rect}};
 
 #[derive(Deserialize)]
-pub struct ItemResource {
+pub struct ItemConfig {
     pub name: String,
     pub description: String,
-    pub renderable: Option<RenderableResource>,
-    pub spawn: Option<SpawnResource>,
-    pub potion: Option<PotionResource>,
+    pub renderable: Option<RenderableConfig>,
+    pub spawn: Option<SpawnConfig>,
+    pub potion: Option<PotionConfig>,
+    pub equippable: Option<EquippableConfig>,
+    pub melee_weapon: Option<MeleeWeaponConfig>,
 }
 
 #[derive(Deserialize)]
-pub struct RenderableResource {
+pub struct RenderableConfig {
     pub glyph: String,
     pub fg: Option<String>,
     pub bg: Option<String>,
@@ -29,24 +31,34 @@ pub struct RenderableResource {
 }
 
 #[derive(Deserialize)]
-pub struct SpawnResource {
+pub struct SpawnConfig {
     pub min_floor: i32,
     pub base_weight: i32,
 }
 
 #[derive(Deserialize)]
-pub struct PotionResource {
+pub struct PotionConfig {
     pub heal_amount: i32,
 }
 
+#[derive(Deserialize)]
+pub struct EquippableConfig {
+    pub slot: EquipmentSlot
+}
+
+#[derive(Deserialize)]
+pub struct MeleeWeaponConfig {
+    pub damage: i32
+}
+
 lazy_static! {
-    pub static ref ITEMS: Mutex<Vec<ItemResource>> = Mutex::new(Vec::new());
+    pub static ref ITEMS: Mutex<Vec<ItemConfig>> = Mutex::new(Vec::new());
     pub static ref MONSTERS: Mutex<Vec<Item>> = Mutex::new(Vec::new());
 }
 
-pub fn initialize_resources() {
-    let items_raw = fs::read_to_string("./resources/items.json").unwrap();
-    let items: Vec<ItemResource> = serde_json::from_str(&items_raw).unwrap();
+pub fn initialize_config() {
+    let items_raw = fs::read_to_string("./config/items.json").unwrap();
+    let items: Vec<ItemConfig> = serde_json::from_str(&items_raw).unwrap();
     ITEMS.lock().unwrap().extend(items);
 }
 
@@ -102,6 +114,22 @@ pub fn spawn_weighted_item(ecs: &mut World, floor_index: u32, room: &Rect) {
             Some(potion) => {
                 entity = entity.with(Potion {
                     heal_amount: potion.heal_amount
+                });
+            },
+            None => {},
+        }
+        match &item.equippable {
+            Some(equippable) => {
+                entity = entity.with(Equippable {
+                    slot: equippable.slot
+                });
+            },
+            None => {},
+        }
+        match &item.melee_weapon {
+            Some(melee_weapon) => {
+                entity = entity.with(MeleeWeapon {
+                    damage: melee_weapon.damage
                 });
             },
             None => {},

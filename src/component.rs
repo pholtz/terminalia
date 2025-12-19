@@ -1,6 +1,7 @@
 use indexmap::IndexMap;
 use ratatui::style::Color;
 use rltk::Point;
+use serde::Deserialize;
 use specs::prelude::*;
 use specs_derive::Component;
 
@@ -82,7 +83,7 @@ pub struct Potion {
     pub heal_amount: i32,
 }
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug, Deserialize)]
 pub enum EquipmentSlot {
     Weapon,
     Shield,
