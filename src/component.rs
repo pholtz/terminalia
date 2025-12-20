@@ -45,7 +45,7 @@ pub struct Viewshed {
 #[derive(Component)]
 pub struct BlocksTile {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Pool {
     pub current: i32,
     pub max: i32,

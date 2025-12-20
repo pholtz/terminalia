@@ -3,7 +3,7 @@ use std::ops::Deref;
 use crate::{
     Player, Position, RunState, component::InBackpack, generate::{
         map::{Map, MapOptions}, spawn::{spawn_player, spawn_weighted_item, spawn_weighted_monster}
-    }, logbook::logbook::Logger
+    }
 };
 use rltk::{Point, RandomNumberGenerator};
 use specs::prelude::*;

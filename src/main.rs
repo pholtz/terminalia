@@ -28,7 +28,7 @@ use system::{
 use crate::{
     component::{
         Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack, Inventory, Item, Lifetime, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, Renderable, Stats, Triggerable, Viewshed, WantsToConsumeItem, WantsToPickupItem
-    }, damage_system::DamageSystem, effect::effect::process_effects, generate::{generator::{generate_floor, reset_floor}, spawn::initialize_config}, input::{
+    }, damage_system::DamageSystem, effect::effect::process_effects, generate::{generate::{generate_floor, reset_floor}, spawn::initialize_config}, input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
         main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event, main_quit::handle_main_quit_key_event,
     }, inventory_system::InventorySystem, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, render::{game::render_game, log::render_log, quit::render_quit}, system::{experience_system::ExperienceSystem, particle_system::ParticleSystem, trigger_system::TriggerSystem}, visibility_system::VisibilitySystem

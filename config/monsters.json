@@ -1,0 +1,114 @@
+[
+    {
+        "name": "Rat",
+        "description": "A rodent of relatively usual size",
+        "renderable": {
+            "glyph": "r",
+            "fg": "#FF0000",
+            "index": 1
+        },
+        "spawn": {
+            "min_floor": 0,
+            "base_weight": 20
+        },
+        "viewshed": {
+            "range": 6
+        },
+        "stats": {
+            "hp": { "current": 4, "max": 4 },
+            "mp": { "current": 0, "max": 0 },
+            "exp": { "current": 0, "max": 0 },
+            "level": 1,
+            "strength": 2,
+            "dexterity": 0,
+            "constitution": 1,
+            "intelligence": 1,
+            "wisdom": 1,
+            "charisma": 1
+        }
+    },
+    {
+        "name": "Snake",
+        "description": "Slimy and slithery with beady, hungry eyes.",
+        "renderable": {
+            "glyph": "s",
+            "fg": "#FF0000",
+            "index": 1
+        },
+        "spawn": {
+            "min_floor": 0,
+            "base_weight": 15
+        },
+        "viewshed": {
+            "range": 8
+        },
+        "stats": {
+            "hp": { "current": 5, "max": 5 },
+            "mp": { "current": 0, "max": 0 },
+            "exp": { "current": 0, "max": 0 },
+            "level": 1,
+            "strength": 1,
+            "dexterity": 2,
+            "constitution": 2,
+            "intelligence": 1,
+            "wisdom": 1,
+            "charisma": 1
+        }
+    },
+    {
+        "name": "Bat",
+        "description": "Small and furry, kinda cute honestly. Oh fuck, are those fangs?",
+        "renderable": {
+            "glyph": "w",
+            "fg": "#FF0000",
+            "index": 1
+        },
+        "spawn": {
+            "min_floor": 0,
+            "base_weight": 15
+        },
+        "viewshed": {
+            "range": 10
+        },
+        "stats": {
+            "hp": { "current": 5, "max": 5 },
+            "mp": { "current": 0, "max": 0 },
+            "exp": { "current": 0, "max": 0 },
+            "level": 1,
+            "strength": 1,
+            "dexterity": 1,
+            "constitution": 1,
+            "intelligence": 1,
+            "wisdom": 1,
+            "charisma": 1
+        }
+    },
+    {
+        "name": "Goblin",
+        "description": "It's a goblin.",
+        "renderable": {
+            "glyph": "g",
+            "fg": "#FF0000",
+            "index": 1
+        },
+        "spawn": {
+            "min_floor": 1,
+            "base_weight": 10
+        },
+        "viewshed": {
+            "range": 8
+        },
+        "stats": {
+            "hp": { "current": 10, "max": 10 },
+            "mp": { "current": 0, "max": 0 },
+            "exp": { "current": 0, "max": 0 },
+            "level": 2,
+            "strength": 2,
+            "dexterity": 2,
+            "constitution": 2,
+            "intelligence": 1,
+            "wisdom": 1,
+            "charisma": 1
+        }
+    }
+]

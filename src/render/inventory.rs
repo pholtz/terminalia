@@ -69,7 +69,7 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
             line.push(description.into());
             line.push("".into());
         }
-        inventory_list.push(ListItem::new(line));
+        inventory_list.push(ListItem::new(Text::from(line)));
     }
 
     let mut state = ListState::default();

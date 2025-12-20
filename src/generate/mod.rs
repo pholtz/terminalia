@@ -1,4 +1,5 @@
-pub mod generator;
+pub mod config;
+pub mod generate;
 pub mod map;
 pub mod random_table;
 pub mod rect;

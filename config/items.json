@@ -29,11 +29,30 @@
         }
     },
     {
+        "name": "Dagger",
+        "description": "A short, pointy blade made for quick cuts.",
+        "renderable": {
+            "glyph": "/",
+            "fg": "#DDDDDD",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 0,
+            "base_weight": 10
+        },
+        "equippable": {
+            "slot": "Weapon"
+        },
+        "melee_weapon": {
+            "damage": 2
+        }
+    },
+    {
         "name": "Shillelagh",
         "description": "A wooden stick with a rounded handle at the top end. Looks like it could be useful for walking as well as self defense.",
         "renderable": {
             "glyph": "/",
-            "fg": "#FFFFFF",
+            "fg": "#DDDDDD",
             "index": 2
         },
         "spawn": {
@@ -45,6 +64,42 @@
         },
         "melee_weapon": {
             "damage": 3
+        }
+    },
+    {
+        "name": "Battered Shield",
+        "description": "A medium-sized, circular shield with some sizeable dents. Seems well made, though.",
+        "renderable": {
+            "glyph": "0",
+            "fg": "#DDDDDD",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 0,
+            "base_weight": 10
+        },
+        "equippable": {
+            "slot": "Shield"
+        },
+        "armor": {
+            "defense": 1
+        }
+    },
+    {
+        "name": "Basic Trap",
+        "description": "A small, neutral colored circular trap with sharp spikes. You probably don't want to step on this.",
+        "renderable": {
+            "glyph": "^",
+            "fg": "#FF1111",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 0,
+            "base_weight": 10
+        },
+        "hidden": true,
+        "triggerable": {
+            "damage": 8
         }
     }
 ]
