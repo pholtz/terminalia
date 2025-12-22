@@ -9,8 +9,10 @@ pub struct ItemConfig {
     pub renderable: Option<RenderableConfig>,
     pub spawn: Option<SpawnConfig>,
     pub potion: Option<PotionConfig>,
+    pub scroll: Option<ScrollConfig>,
     pub equippable: Option<EquippableConfig>,
     pub melee_weapon: Option<MeleeWeaponConfig>,
+    pub ranged_weapon: Option<RangedWeaponConfig>,
     pub armor: Option<ArmorConfig>,
     pub hidden: Option<bool>,
     pub triggerable: Option<TriggerableConfig>,
@@ -46,6 +48,16 @@ pub struct PotionConfig {
 }
 
 #[derive(Deserialize)]
+pub enum ScrollType {
+    MagicMapper,
+}
+
+#[derive(Deserialize)]
+pub struct ScrollConfig {
+    pub scroll_type: ScrollType,
+}
+
+#[derive(Deserialize)]
 pub struct EquippableConfig {
     pub slot: EquipmentSlot
 }
@@ -53,6 +65,12 @@ pub struct EquippableConfig {
 #[derive(Deserialize)]
 pub struct MeleeWeaponConfig {
     pub damage: i32
+}
+
+#[derive(Deserialize)]
+pub struct RangedWeaponConfig {
+    pub damage: i32,
+    pub range: i32
 }
 
 #[derive(Deserialize)]

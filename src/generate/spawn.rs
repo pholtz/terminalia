@@ -8,10 +8,9 @@ use specs::prelude::*;
 
 use crate::{
     component::{
-        Armor, BlocksTile, Equippable, Hidden, Inventory, Item, MeleeWeapon, Monster, Name, Player,
-        Pool, Position, Potion, Renderable, Stats, Triggerable, Viewshed,
+        Armor, BlocksTile, Equippable, Hidden, Inventory, Item, MagicMapper, MeleeWeapon, Monster, Name, Player, Pool, Position, Potion, RangedWeapon, Renderable, Stats, Triggerable, Viewshed
     },
-    generate::{config::{ItemConfig, MonsterConfig}, random_table::RandomTable, rect::Rect},
+    generate::{config::{ItemConfig, MonsterConfig, ScrollType}, random_table::RandomTable, rect::Rect},
 };
 
 lazy_static! {
@@ -112,6 +111,17 @@ pub fn spawn_weighted_item(ecs: &mut World, floor_index: u32, room: &Rect) {
             None => {}
         }
 
+        match &item.ranged_weapon {
+            Some(ranged_weapon) => {
+                entity = entity.with(RangedWeapon {
+                    damage: ranged_weapon.damage,
+                    range: ranged_weapon.range,
+                    target: None,
+                });
+            },
+            None => {}
+        }
+
         match &item.armor {
             Some(armor) => {
                 entity = entity.with(Armor {
@@ -136,6 +146,17 @@ pub fn spawn_weighted_item(ecs: &mut World, floor_index: u32, room: &Rect) {
                     damage: triggerable.damage,
                 });
             }
+            None => {}
+        }
+
+        match &item.scroll {
+            Some(scroll) => {
+                match scroll.scroll_type {
+                    ScrollType::MagicMapper => {
+                        entity = entity.with(MagicMapper {});
+                    }
+                }
+            },
             None => {}
         }
         entity.build();

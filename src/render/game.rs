@@ -9,7 +9,7 @@ use rltk::Point;
 use specs::prelude::*;
 
 use crate::{
-    RunState, component::{Hidden, Inventory, Item, Name, Pool, Position, Renderable, Stats}, generate::map::{Map, TileType}, logbook::logbook::format_text
+    RunState, component::{EquipmentSlot, Equipped, Hidden, Inventory, Item, Name, Pool, Position, RangedWeapon, Renderable, Stats}, generate::map::{Map, TileType}, logbook::logbook::format_text
 };
 
 pub const VIEW_WIDTH: i32 = 80;
@@ -38,6 +38,8 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
     let inventory = ecs.read_storage::<Inventory>();
     let names = ecs.read_storage::<Name>();
     let items = ecs.read_storage::<Item>();
+    let ranged_weapons = ecs.read_storage::<RangedWeapon>();
+    let equipped = ecs.read_storage::<Equipped>();
 
     // Define the min (top left), and max (bottom right) of the viewport
     let center = Point {
@@ -144,6 +146,35 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
             );
         },
         _ => {}
+    }
+
+    /*
+     * Targeting
+     * If the player is targeting an enemy, we should overwrite the background
+     * of the entity with a bright color to indicate that it is targeted.
+     */
+    for (ranged_weapon, equipped) in (&ranged_weapons, &equipped).join() {
+        let is_ranged = equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player;
+        let is_targeting = ranged_weapon.target.is_some();
+        if is_ranged && is_targeting {
+            if let Some(target_pos) = positions.get(ranged_weapon.target.unwrap()) {
+                // Renderable is outside of the current viewport
+                if target_pos.x < map_min.x || map_max.x < target_pos.x || target_pos.y < map_min.y || map_max.y < target_pos.y {
+                    continue;
+                }
+                let view_pos = Position {
+                    x: target_pos.x - map_min.x,
+                    y: target_pos.y - map_min.y,
+                };
+                let existing_span = lines[view_pos.y as usize].spans[view_pos.x as usize].clone();
+                lines[view_pos.y as usize].spans[view_pos.x as usize] = Span::styled(
+                    existing_span.content,
+                    Style::default()
+                        .fg(existing_span.style.fg.unwrap_or(Color::White))
+                        .bg(Color::LightGreen)
+                );
+            }
+        }
     }
 
     /*

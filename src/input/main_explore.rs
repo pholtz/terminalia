@@ -5,8 +5,8 @@ use std::cmp::{max, min};
 
 use crate::{
     App, RunState, Screen,
-    component::{Attack, Item, Player, Position, Stats, WantsToPickupItem},
-    generate::map::{Map, TileType}, logbook::logbook::Logger,
+    component::{Attack, AttackType, EquipmentSlot, Equipped, Item, Monster, Player, Pool, Position, RangedWeapon, Stats, Viewshed, WantsToPickupItem},
+    generate::map::{Map, TileType}, logbook::logbook::Logger, system::visibility_system::get_player_ranged_weapon_entity,
 };
 
 pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_event: KeyEvent) -> Option<RunState> {
@@ -68,6 +68,8 @@ pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_even
             };
         }
 
+        KeyCode::Tab => try_cycle_targeting(&mut app.ecs),
+        KeyCode::Char('1') => try_ranged_target(&mut app.ecs),
         KeyCode::Char('g') => try_get_item(&mut app.ecs),
         KeyCode::Char('i') => {
             app.screen = Screen::Inventory;
@@ -75,6 +77,21 @@ pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_even
         }
         KeyCode::Char('.') => try_next_level(&mut app.ecs),
         KeyCode::Char(',') => try_prev_level(&mut app.ecs),
+        
+        /*
+         * Cheats
+         */
+        KeyCode::Char('0') => {
+            let ecs = &mut app.ecs;
+            let player = ecs.fetch::<Entity>();
+            let mut stats = ecs.write_storage::<Stats>();
+            let player_stats = stats.get_mut(*player).expect("Unable to access player stats");
+            player_stats.hp = Pool {
+                current: player_stats.hp.max,
+                max: player_stats.hp.max,
+            };
+            return None;
+        }
         KeyCode::Char('q') => {
             app.screen = Screen::Log;
             return None;
@@ -114,7 +131,10 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) -> Option<RunSta
                 None => {}
                 Some(_t) => {
                     attacks
-                        .insert(entity, Attack { target: *target })
+                        .insert(entity, Attack {
+                            attack_type: AttackType::Melee,
+                            target: *target
+                        })
                         .expect("Unable to add attack");
                     return Some(RunState::PlayerTurn);
                 }
@@ -184,6 +204,95 @@ fn try_prev_level(ecs: &mut World) -> Option<RunState> {
     if map.tiles[player_index] == TileType::UpStairs {
         *runstate = RunState::Ascending;
         return Some(RunState::Ascending);
+    }
+    return None;
+}
+
+fn try_cycle_targeting(ecs: &mut World) -> Option<RunState> {
+    let entities = ecs.entities();
+    let map = ecs.fetch::<Map>();
+    let player_entity = ecs.fetch::<Entity>();
+    let equipped = ecs.read_storage::<Equipped>();
+    let mut ranged_weapons = ecs.write_storage::<RangedWeapon>();
+    let monsters = ecs.read_storage::<Monster>();
+    let positions = ecs.read_storage::<Position>();
+
+    let mut player_ranged_weapon: Option<&mut RangedWeapon> = None;
+    for (_entity, equipped, ranged_weapon) in (&entities, &equipped, &mut ranged_weapons).join() {
+        if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
+            player_ranged_weapon = Some(ranged_weapon);
+        }
+    }
+
+    match player_ranged_weapon {
+        Some(ranged) => {
+            let player_pos = positions.get(*player_entity).expect("Unable to access player position");
+
+            let mut eligible_monsters = Vec::new();
+            for (monster_entity, _monster, monster_pos) in (&entities, &monsters, &positions).join() {
+                let distance = rltk::DistanceAlg::Pythagoras.distance2d(
+                    Point { x: player_pos.x, y: player_pos.y },
+                    Point { x: monster_pos.x, y: monster_pos.y }
+                );
+                if distance <= ranged.range as f32 {
+                    eligible_monsters.push((map.xy_idx(monster_pos.x, monster_pos.y), monster_entity));
+                }
+            }
+
+            eligible_monsters.sort_by_key(|(idx, _)| *idx);
+            if !eligible_monsters.is_empty() {
+                match ranged.target {
+                    Some(target) => {
+                        let existing_target = eligible_monsters.iter().enumerate()
+                            .filter(|(_index, (_map_index, monster))| *monster == target)
+                            .next();
+                        match existing_target {
+                            Some(et) => {
+                                let next_index = et.0 + 1;
+                                if next_index < eligible_monsters.len() {
+                                    ranged.target = Some(eligible_monsters[next_index].1);
+                                } else {
+                                    ranged.target = Some(eligible_monsters[0].1);
+                                }
+                            },
+                            None => {
+                                ranged.target = Some(eligible_monsters[0].1);
+                            }
+                        }
+                    },
+                    None => {
+                        ranged.target = Some(eligible_monsters[0].1);
+                    }
+                }
+            }
+        },
+        None => {},
+    }
+    return None;
+}
+
+fn try_ranged_target(ecs: &mut World) -> Option<RunState> {
+    let entities = ecs.entities();
+    let player_entity = ecs.fetch::<Entity>();
+    let equipped = ecs.read_storage::<Equipped>();
+    let mut ranged_weapons = ecs.write_storage::<RangedWeapon>();
+    let mut attacks = ecs.write_storage::<Attack>();
+
+    for (_ranged_entity, equipped, ranged_weapon) in (&entities, &equipped, &mut ranged_weapons).join() {
+        if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
+            match ranged_weapon.target {
+                Some(target) => {
+                    attacks
+                        .insert(*player_entity, Attack {
+                            attack_type: AttackType::Ranged,
+                            target: target
+                        })
+                        .expect("Unable to add attack");
+                    return Some(RunState::PlayerTurn);
+                },
+                None => {},
+            }
+        }
     }
     return None;
 }

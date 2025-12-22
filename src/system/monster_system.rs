@@ -1,7 +1,7 @@
 use rltk::{Point};
 use specs::prelude::*;
 
-use crate::{generate::map::{Map}, Attack, Monster, Position, RunState, Viewshed};
+use crate::{Attack, Monster, Position, RunState, Viewshed, component::AttackType, generate::map::Map};
 
 pub struct MonsterSystem {
 
@@ -72,8 +72,10 @@ impl<'a> System<'a> for MonsterSystem {
                  */
                 let distance = rltk::DistanceAlg::Pythagoras.distance2d(Point::new(position.x, position.y), *player_position);
                 if distance < 1.5 {
-                    attack.insert(entity, Attack { target: *player_entity })
-                        .expect("Unable to add monster attack");
+                    attack.insert(entity, Attack {
+                        attack_type: AttackType::Melee,
+                        target: *player_entity
+                    }).expect("Unable to add monster attack");
                 }
             }
         }

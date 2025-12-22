@@ -25,12 +25,6 @@ pub struct Player {}
 #[derive(Component, Debug)]
 pub struct Monster {}
 
-// #[derive(Component, Debug)]
-// pub struct Logbook {
-//     pub entries: Vec<String>,
-//     pub scroll_offset: u16,
-// }
-
 #[derive(Component, Debug)]
 pub struct Name {
     pub name: String,
@@ -111,6 +105,13 @@ pub struct MeleeWeapon {
 }
 
 #[derive(Component, Debug)]
+pub struct RangedWeapon {
+    pub damage: i32,
+    pub range: i32,
+    pub target: Option<Entity>,
+}
+
+#[derive(Component, Debug)]
 pub struct Armor {
     pub defense: i32,
 }
@@ -134,8 +135,14 @@ pub struct WantsToConsumeItem {
     pub item: Entity,
 }
 
+pub enum AttackType {
+    Melee,
+    Ranged,
+}
+
 #[derive(Component)]
 pub struct Attack {
+    pub attack_type: AttackType,
     pub target: Entity,
 }
 

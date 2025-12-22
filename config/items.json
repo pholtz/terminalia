@@ -26,6 +26,9 @@
         "spawn": {
             "min_floor": 0,
             "base_weight": 5
+        },
+        "scroll": {
+            "scroll_type": "MagicMapper"
         }
     },
     {
@@ -100,6 +103,26 @@
         "hidden": true,
         "triggerable": {
             "damage": 8
+        }
+    },
+    {
+        "name": "Shortbow",
+        "description": "A small bow with thin wooden limbs, comfortable and springy.",
+        "renderable": {
+            "glyph": ")",
+            "fg": "#DDDDDD",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 1,
+            "base_weight": 50
+        },
+        "equippable": {
+            "slot": "Weapon"
+        },
+        "ranged_weapon": {
+            "damage": 4,
+            "range": 12
         }
     }
 ]

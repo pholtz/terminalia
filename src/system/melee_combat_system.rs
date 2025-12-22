@@ -5,7 +5,7 @@ use specs::prelude::*;
 
 use crate::{
     Attack, Damage, Name, Stats,
-    component::{Armor, Equipped, Lifetime, MeleeWeapon, Position, Renderable}, logbook::logbook::Logger,
+    component::{Armor, AttackType, Equipped, Lifetime, MeleeWeapon, Position, RangedWeapon, Renderable}, logbook::logbook::Logger,
 };
 
 pub struct MeleeCombatSystem {}
@@ -19,6 +19,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
         WriteStorage<'a, Damage>,
         ReadStorage<'a, Equipped>,
         ReadStorage<'a, MeleeWeapon>,
+        ReadStorage<'a, RangedWeapon>,
         ReadStorage<'a, Armor>,
         WriteStorage<'a, Position>,
         WriteStorage<'a, Renderable>,
@@ -41,6 +42,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
             mut damages,
             equipment,
             melee_weapons,
+            ranged_weapons,
             armor,
             mut positions,
             mut renderables,
@@ -57,10 +59,21 @@ impl<'a> System<'a> for MeleeCombatSystem {
                 
                 // target's health
                 if target_stats.hp.current > 0 {
-                    let mut melee_weapon_damage = 0;
-                    for (equipped, melee_weapon) in (&equipment, &melee_weapons).join() {
-                        if equipped.owner == attacker_entity {
-                            melee_weapon_damage = melee_weapon.damage;
+                    let mut weapon_damage = 0;
+                    match attack.attack_type {
+                        AttackType::Melee => {
+                            for (equipped, melee_weapon) in (&equipment, &melee_weapons).join() {
+                                if equipped.owner == attacker_entity {
+                                    weapon_damage = melee_weapon.damage;
+                                }
+                            }
+                        },
+                        AttackType::Ranged => {
+                            for (equipped, ranged_weapon) in (&equipment, &ranged_weapons).join() {
+                                if equipped.owner == attacker_entity {
+                                    weapon_damage = ranged_weapon.damage;
+                                }
+                            }
                         }
                     }
 
@@ -71,7 +84,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
                         }
                     }
 
-                    let raw_damage = stat.strength + melee_weapon_damage;
+                    let raw_damage = stat.strength + weapon_damage;
                     let raw_defense = target_stats.dexterity + armor_defense;
                     let damage_inflicted = i32::max(0, raw_damage - raw_defense);
 
