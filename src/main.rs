@@ -31,7 +31,7 @@ use crate::{
     }, damage_system::DamageSystem, effect::effect::process_effects, generate::{generate::{generate_floor, reset_floor}, spawn::initialize_config}, input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
         main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event, main_quit::handle_main_quit_key_event,
-    }, inventory_system::InventorySystem, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, render::{game::render_game, log::render_log, quit::render_quit}, system::{experience_system::ExperienceSystem, particle_system::ParticleSystem, trigger_system::TriggerSystem}, visibility_system::VisibilitySystem
+    }, inventory_system::InventorySystem, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, render::{game::render_game, log::render_log, quit::render_quit}, system::{experience_system::ExperienceSystem, particle_system::ParticleSystem, ranged_combat_system::RangedCombatSystem, trigger_system::TriggerSystem}, visibility_system::VisibilitySystem
 };
 
 #[derive(Debug)]
@@ -71,6 +71,7 @@ pub enum RunState {
     AwaitingInput,
     Examining { index: usize },
     LevelUp { index: usize },
+    FreeAiming { index: usize },
     PlayerTurn,
     MonsterTurn,
     Descending,
@@ -118,7 +119,8 @@ impl App {
                     match self.runstate {
                         RunState::AwaitingInput => {},
                         RunState::Examining { index: _ } => {},
-                        RunState::LevelUp { index: _ }=> {},
+                        RunState::LevelUp { index: _ } => {},
+                        RunState::FreeAiming { index: _ } => {},
                         RunState::PlayerTurn => next_runstate = RunState::MonsterTurn,
                         RunState::MonsterTurn => next_runstate = RunState::AwaitingInput,
                         RunState::Descending => {
@@ -263,6 +265,11 @@ fn reinitialize_systems(world: &mut World) -> Dispatcher<'static, 'static> {
             &["monster_system"],
         )
         .with(TriggerSystem {}, "trigger_system", &["map_indexing_system"])
+        .with(
+            RangedCombatSystem {},
+            "ranged_combat_system",
+            &["map_indexing_system"],
+        )
         .with(
             MeleeCombatSystem {},
             "melee_combat_system",

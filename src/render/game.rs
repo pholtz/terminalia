@@ -9,7 +9,14 @@ use rltk::Point;
 use specs::prelude::*;
 
 use crate::{
-    RunState, component::{EquipmentSlot, Equipped, Hidden, Inventory, Item, Name, Pool, Position, RangedWeapon, Renderable, Stats}, generate::map::{Map, TileType}, logbook::logbook::format_text
+    RunState,
+    component::{
+        EquipmentSlot, Equipped, Hidden, Inventory, Item, Name, Pool, Position, RangedWeapon,
+        Renderable, Stats,
+    },
+    generate::map::{Map, TileType},
+    logbook::logbook::format_text,
+    system::ranged_combat_system::{get_eligible_ranged_tiles},
 };
 
 pub const VIEW_WIDTH: i32 = 80;
@@ -29,6 +36,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
      */
     let map = ecs.fetch::<Map>();
     let runstate = ecs.fetch::<RunState>();
+    let player_entity = ecs.fetch::<Entity>();
     let player_position = ecs.fetch::<Point>();
     let positions = ecs.read_storage::<Position>();
     let renderables = ecs.read_storage::<Renderable>();
@@ -60,8 +68,8 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
      */
     let mut lines: Vec<Line> = Vec::new();
     let mut spans: Vec<Span> = Vec::new();
-    for (_view_y, map_y) in (map_min.y ..= map_max.y).enumerate() {
-        for (_view_x, map_x) in (map_min.x ..= map_max.x).enumerate() {
+    for (_view_y, map_y) in (map_min.y..=map_max.y).enumerate() {
+        for (_view_x, map_x) in (map_min.x..=map_max.x).enumerate() {
             let mut span: Span;
 
             // Out of bounds on map -- render blanks and avoid any map dereferences
@@ -78,7 +86,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                     TileType::Wall => Span::styled("#", Style::default().fg(Color::Green)),
                     TileType::DownStairs => Span::styled(">", Style::default().fg(Color::Yellow)),
                     TileType::UpStairs => Span::styled("<", Style::default().fg(Color::Yellow)),
-                }                
+                }
             } else {
                 span = Span::styled(" ", Style::default());
             }
@@ -95,14 +103,15 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
     /*
      * Overwrite base map spans with any renderable characters.
      * Sort renderables by index (render order) prior to rendering, lowest first.
-     * 
+     *
      * If the existing span has a background set, we keep that (e.g. bloodstain).
      * Otherwise, we use the renderable's desired background.
      */
-    let mut renderable_entities = (&positions, &renderables, !&hidden).join().collect::<Vec<_>>();
+    let mut renderable_entities = (&positions, &renderables, !&hidden)
+        .join()
+        .collect::<Vec<_>>();
     renderable_entities.sort_by(|&a, &b| b.1.index.cmp(&a.1.index));
     for (pos, render, _hidden) in renderable_entities.iter() {
-
         // Renderable has not yet been revealed by the player
         if !map.revealed_tiles[map.xy_idx(pos.x, pos.y)] {
             continue;
@@ -127,8 +136,13 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
     }
 
     /*
+     * E X A M I N I N G
      * If the player is in examine mode, overwrite the background of the field
      * being examined with a bright color to indicate that it is selected.
+     *
+     * F R E E  A I M I N G
+     * If the player is free aiming, we want to retrieve the entity they are
+     * aiming with and brightly render all possible tiles within range.
      */
     match *runstate {
         RunState::Examining { index } => {
@@ -142,9 +156,32 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                 existing_span.content,
                 Style::default()
                     .fg(existing_span.style.fg.unwrap_or(Color::White))
-                    .bg(Color::Cyan)
+                    .bg(Color::Cyan),
             );
-        },
+        }
+        RunState::FreeAiming { index } => {
+            for (equipped, ranged) in (&equipped, &ranged_weapons).join() {
+                if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
+                    let eligible_tiles =
+                        get_eligible_ranged_tiles(&map, &player_position, ranged.range);
+                    for tile_index in eligible_tiles.iter() {
+                        let (tile_x, tile_y) = map.idx_xy(*tile_index);
+                        let view_pos = Position {
+                            x: tile_x - map_min.x,
+                            y: tile_y - map_min.y,
+                        };
+                        let existing_span =
+                            lines[view_pos.y as usize].spans[view_pos.x as usize].clone();
+                        lines[view_pos.y as usize].spans[view_pos.x as usize] = Span::styled(
+                            existing_span.content,
+                            Style::default()
+                                .fg(existing_span.style.fg.unwrap_or(Color::White))
+                                .bg(if index == *tile_index { Color::Red } else { Color::LightGreen }),
+                        );
+                    }
+                }
+            }
+        }
         _ => {}
     }
 
@@ -159,7 +196,11 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
         if is_ranged && is_targeting {
             if let Some(target_pos) = positions.get(ranged_weapon.target.unwrap()) {
                 // Renderable is outside of the current viewport
-                if target_pos.x < map_min.x || map_max.x < target_pos.x || target_pos.y < map_min.y || map_max.y < target_pos.y {
+                if target_pos.x < map_min.x
+                    || map_max.x < target_pos.x
+                    || target_pos.y < map_min.y
+                    || map_max.y < target_pos.y
+                {
                     continue;
                 }
                 let view_pos = Position {
@@ -171,7 +212,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                     existing_span.content,
                     Style::default()
                         .fg(existing_span.style.fg.unwrap_or(Color::White))
-                        .bg(Color::LightGreen)
+                        .bg(Color::LightGreen),
                 );
             }
         }
@@ -180,7 +221,11 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
     /*
      * Format the status bar with health, gold, etc.
      */
-    let player_name: String = names.get(*player).expect("Unable to fetch player name").name.clone();
+    let player_name: String = names
+        .get(*player)
+        .expect("Unable to fetch player name")
+        .name
+        .clone();
     let player_floor = format!("Floor: {}", floor_index);
     let pools = format_pools(&player, stats, inventory).expect("Unable to format player pools!");
 
@@ -201,13 +246,13 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                     serialized_examine.push_str(&item.description);
                 }
 
-                if !serialized_examine.is_empty() { break; }
+                if !serialized_examine.is_empty() {
+                    break;
+                }
             }
             Text::raw(serialized_examine)
-        },
-        _ => {
-            format_text(4)
         }
+        _ => format_text(4),
     };
 
     let horizontal_layout = Layout::default()
@@ -220,7 +265,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
 
     let left_block = Block::default().borders(Borders::NONE);
     let right_block = Block::default().borders(Borders::NONE);
-    
+
     frame.render_widget(left_block.clone(), horizontal_layout[0]);
     frame.render_widget(right_block.clone(), horizontal_layout[1]);
 
@@ -237,41 +282,40 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
 
     let right_vertical_layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(vec![
-            Constraint::Length(6),
-            Constraint::Length(6),
-        ])
+        .constraints(vec![Constraint::Length(6), Constraint::Length(6)])
         .split(right_inner);
 
     frame.render_widget(Paragraph::new(Text::from(lines)), left_vertical_layout[0]);
-    frame.render_widget(
-        Paragraph::new(text),
-        left_vertical_layout[1]
-    );
+    frame.render_widget(Paragraph::new(text), left_vertical_layout[1]);
 
     frame.render_widget(
-        Paragraph::new(
-            Text::from(vec![
-                Line::from(player_name),
-                Line::from(Span::styled(player_floor, Style::new().fg(Color::Gray))),
-                Line::from(vec![
-                    Span::styled(format!("{:12}", pools.hp.1), Style::new().fg(Color::LightRed)),
-                    Span::styled(pools.hp.2, Style::new().bg(Color::Red)),
-                    Span::styled(pools.hp.3, Style::new().bg(Color::Rgb(60, 0, 0))),
-                ]),
-                Line::from(vec![
-                    Span::styled(format!("{:12}", pools.mp.1), Style::new().fg(Color::Blue)),
-                    Span::styled(pools.mp.2, Style::new().bg(Color::Blue)),
-                    Span::styled(pools.mp.3, Style::new().bg(Color::Rgb(0, 0, 60))),
-                ]),
-                Line::from(vec![
-                    Span::styled(format!("{:12}", pools.exp.1), Style::new().fg(Color::LightMagenta)),
-                    Span::styled(pools.exp.2, Style::new().bg(Color::LightMagenta)),
-                    Span::styled(pools.exp.3, Style::new().bg(Color::Rgb(60, 60, 60))),
-                ])
-            ]))
-            .block(Block::new().borders(Borders::NONE)),
-        right_vertical_layout[0]
+        Paragraph::new(Text::from(vec![
+            Line::from(player_name),
+            Line::from(Span::styled(player_floor, Style::new().fg(Color::Gray))),
+            Line::from(vec![
+                Span::styled(
+                    format!("{:12}", pools.hp.1),
+                    Style::new().fg(Color::LightRed),
+                ),
+                Span::styled(pools.hp.2, Style::new().bg(Color::Red)),
+                Span::styled(pools.hp.3, Style::new().bg(Color::Rgb(60, 0, 0))),
+            ]),
+            Line::from(vec![
+                Span::styled(format!("{:12}", pools.mp.1), Style::new().fg(Color::Blue)),
+                Span::styled(pools.mp.2, Style::new().bg(Color::Blue)),
+                Span::styled(pools.mp.3, Style::new().bg(Color::Rgb(0, 0, 60))),
+            ]),
+            Line::from(vec![
+                Span::styled(
+                    format!("{:12}", pools.exp.1),
+                    Style::new().fg(Color::LightMagenta),
+                ),
+                Span::styled(pools.exp.2, Style::new().bg(Color::LightMagenta)),
+                Span::styled(pools.exp.3, Style::new().bg(Color::Rgb(60, 60, 60))),
+            ]),
+        ]))
+        .block(Block::new().borders(Borders::NONE)),
+        right_vertical_layout[0],
     );
 }
 
@@ -290,30 +334,50 @@ pub struct FormattedPools {
 /*
  * Format the status bar with health, gold, etc.
  */
-pub fn format_pools(player: &Entity, stats: ReadStorage<Stats>, inventory: ReadStorage<Inventory>) -> Option<FormattedPools> {
+pub fn format_pools(
+    player: &Entity,
+    stats: ReadStorage<Stats>,
+    inventory: ReadStorage<Inventory>,
+) -> Option<FormattedPools> {
     return match (stats.get(*player), inventory.get(*player)) {
         (Some(stats), Some(_inventory)) => {
             let player_hp = format!("HP: {} / {} ", stats.hp.current, stats.hp.max);
-            let hp_bar_remaining = ((stats.hp.current as f64 / stats.hp.max as f64) * (25 as f64)).round() as usize;
+            let hp_bar_remaining =
+                ((stats.hp.current as f64 / stats.hp.max as f64) * (25 as f64)).round() as usize;
             let player_hp_remaining = " ".repeat(hp_bar_remaining);
             let player_hp_total = " ".repeat(25 - hp_bar_remaining);
-            
+
             let player_mp = "MP: 10 / 10 ".to_string();
             let player_mp_remaining = " ".repeat(20);
             let player_mp_total = " ".repeat(5);
 
             let player_exp = format!("Level: {}", stats.level);
             let player_exp_fill = " ".repeat(
-                ((stats.exp.current as f64 / stats.exp.max as f64) * (25 as f64)).round() as usize
+                ((stats.exp.current as f64 / stats.exp.max as f64) * (25 as f64)).round() as usize,
             );
             let player_exp_empty = " ".repeat(25 - player_exp_fill.len());
 
             Some(FormattedPools {
-                hp: (stats.hp.clone(), player_hp, player_hp_remaining, player_hp_total),
-                mp: (stats.mp.clone(), player_mp, player_mp_remaining, player_mp_total),
-                exp: (stats.exp.clone(), player_exp, player_exp_fill, player_exp_empty),
+                hp: (
+                    stats.hp.clone(),
+                    player_hp,
+                    player_hp_remaining,
+                    player_hp_total,
+                ),
+                mp: (
+                    stats.mp.clone(),
+                    player_mp,
+                    player_mp_remaining,
+                    player_mp_total,
+                ),
+                exp: (
+                    stats.exp.clone(),
+                    player_exp,
+                    player_exp_fill,
+                    player_exp_empty,
+                ),
             })
-        },
+        }
         _ => None,
-    }
+    };
 }

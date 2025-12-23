@@ -5,71 +5,77 @@ use std::cmp::{max, min};
 
 use crate::{
     App, RunState, Screen,
-    component::{Attack, AttackType, EquipmentSlot, Equipped, Item, Monster, Player, Pool, Position, RangedWeapon, Stats, Viewshed, WantsToPickupItem},
-    generate::map::{Map, TileType}, logbook::logbook::Logger, system::visibility_system::get_player_ranged_weapon_entity,
+    component::{
+        Attack, AttackType, EquipmentSlot, Equipped, Item, Monster, Player, Pool, Position,
+        RangedWeapon, Stats, WantsToPickupItem,
+    },
+    generate::map::{Map, TileType},
+    logbook::logbook::Logger, system::ranged_combat_system::{get_eligible_ranged_tiles},
 };
 
-pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_event: KeyEvent) -> Option<RunState> {
+pub fn handle_main_explore_key_event(
+    app: &mut App,
+    runstate: RunState,
+    key_event: KeyEvent,
+) -> Option<RunState> {
     match key_event.code {
-        KeyCode::Esc => {
-            match runstate {
-                RunState::Examining { index: _ } => Some(RunState::AwaitingInput),
-                RunState::AwaitingInput => {
-                    app.screen = Screen::Quit { quit: false };
-                    None
-                }
-                _ => {
-                    None
-                }
+        KeyCode::Esc => match runstate {
+            RunState::Examining { index: _ } => Some(RunState::AwaitingInput),
+            RunState::FreeAiming { index: _ } => Some(RunState::AwaitingInput),
+            RunState::AwaitingInput => {
+                app.screen = Screen::Quit { quit: false };
+                None
             }
-        }
+            _ => None,
+        },
 
-        KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('h') => {
-            match runstate {
-                RunState::AwaitingInput => try_move_player(-1, 0, &mut app.ecs),
-                RunState::Examining { index: _ } => try_move_examine(app, -1, 0),
-                _ => None,
-            }
-        }
+        KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('h') => match runstate {
+            RunState::AwaitingInput => try_move_player(-1, 0, &mut app.ecs),
+            RunState::Examining { index: _ } => try_move_examine(app, -1, 0),
+            RunState::FreeAiming { index: _ } => try_move_free_aim(app, -1, 0),
+            _ => None,
+        },
 
-        KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('l') => {
-            match runstate {
-                RunState::AwaitingInput => try_move_player(1, 0, &mut app.ecs),
-                RunState::Examining { index: _ } => try_move_examine(app, 1, 0),
-                _ => None,
-            }
-        }
+        KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('l') => match runstate {
+            RunState::AwaitingInput => try_move_player(1, 0, &mut app.ecs),
+            RunState::Examining { index: _ } => try_move_examine(app, 1, 0),
+            RunState::FreeAiming { index: _ } => try_move_free_aim(app, 1, 0),
+            _ => None,
+        },
 
-        KeyCode::Up | KeyCode::Char('w') | KeyCode::Char('k') => {
-            match runstate {
-                RunState::AwaitingInput => try_move_player(0, -1, &mut app.ecs),
-                RunState::Examining { index: _ } => try_move_examine(app, 0, -1),
-                _ => None,
-            }
-        }
+        KeyCode::Up | KeyCode::Char('w') | KeyCode::Char('k') => match runstate {
+            RunState::AwaitingInput => try_move_player(0, -1, &mut app.ecs),
+            RunState::Examining { index: _ } => try_move_examine(app, 0, -1),
+            RunState::FreeAiming { index: _ } => try_move_free_aim(app, 0, -1),
+            _ => None,
+        },
 
-        KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('j') => {
-            match runstate {
-                RunState::AwaitingInput => try_move_player(0, 1, &mut app.ecs),
-                RunState::Examining { index: _ } => try_move_examine(app, 0, 1),
-                _ => None,
-            }
-        }
+        KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('j') => match runstate {
+            RunState::AwaitingInput => try_move_player(0, 1, &mut app.ecs),
+            RunState::Examining { index: _ } => try_move_examine(app, 0, 1),
+            RunState::FreeAiming { index: _ } => try_move_free_aim(app, 0, 1),
+            _ => None,
+        },
 
         KeyCode::Char('/') => {
             let ecs = &mut app.ecs;
             let map = ecs.fetch::<Map>();
             let player = ecs.read_resource::<Entity>();
             let positions = ecs.read_storage::<Position>();
-            let position = positions.get(*player).expect("Cannot get position for player");
+            let position = positions
+                .get(*player)
+                .expect("Cannot get position for player");
             return match app.runstate {
                 RunState::Examining { index: _ } => Some(RunState::AwaitingInput),
-                _ => Some(RunState::Examining { index: map.xy_idx(position.x, position.y) })
+                _ => Some(RunState::Examining {
+                    index: map.xy_idx(position.x, position.y),
+                }),
             };
         }
 
         KeyCode::Tab => try_cycle_targeting(&mut app.ecs),
-        KeyCode::Char('1') => try_ranged_target(&mut app.ecs),
+        KeyCode::Char(' ') => try_free_aim(app),
+        KeyCode::Char('1') => try_ranged_target(app),
         KeyCode::Char('g') => try_get_item(&mut app.ecs),
         KeyCode::Char('i') => {
             app.screen = Screen::Inventory;
@@ -77,7 +83,7 @@ pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_even
         }
         KeyCode::Char('.') => try_next_level(&mut app.ecs),
         KeyCode::Char(',') => try_prev_level(&mut app.ecs),
-        
+
         /*
          * Cheats
          */
@@ -85,7 +91,9 @@ pub fn handle_main_explore_key_event(app: &mut App, runstate: RunState, key_even
             let ecs = &mut app.ecs;
             let player = ecs.fetch::<Entity>();
             let mut stats = ecs.write_storage::<Stats>();
-            let player_stats = stats.get_mut(*player).expect("Unable to access player stats");
+            let player_stats = stats
+                .get_mut(*player)
+                .expect("Unable to access player stats");
             player_stats.hp = Pool {
                 current: player_stats.hp.max,
                 max: player_stats.hp.max,
@@ -105,9 +113,35 @@ fn try_move_examine(app: &mut App, delta_x: i32, delta_y: i32) -> Option<RunStat
         RunState::Examining { index } => {
             let map = app.ecs.fetch::<Map>();
             let (x, y) = map.idx_xy(index);
-            return Some(RunState::Examining { index: map.xy_idx(x + delta_x, y + delta_y) });
+            return Some(RunState::Examining {
+                index: map.xy_idx(x + delta_x, y + delta_y),
+            });
+        }
+        _ => None,
+    }
+}
+
+fn try_move_free_aim(app: &mut App, delta_x: i32, delta_y: i32) -> Option<RunState> {
+    match app.runstate {
+        RunState::FreeAiming { index } => {
+            let map = app.ecs.fetch::<Map>();
+            let player_pos = app.ecs.fetch::<Point>();
+            let player_entity = app.ecs.fetch::<Entity>();
+            let equipped = app.ecs.read_storage::<Equipped>();
+            let ranged_weapons = app.ecs.read_storage::<RangedWeapon>();
+            for (equipped, ranged) in (&equipped, &ranged_weapons).join() {
+                if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
+                    let (x, y) = map.idx_xy(index);
+                    let target_index = map.xy_idx(x + delta_x, y + delta_y);
+                    let eligible_tiles = get_eligible_ranged_tiles(&map, &player_pos, ranged.range);
+                    if eligible_tiles.contains(&target_index) {
+                        return Some(RunState::FreeAiming { index: target_index });
+                    }
+                }
+            }
+            return None;
         },
-        _ => None
+        _ => None,
     }
 }
 
@@ -131,10 +165,13 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) -> Option<RunSta
                 None => {}
                 Some(_t) => {
                     attacks
-                        .insert(entity, Attack {
-                            attack_type: AttackType::Melee,
-                            target: *target
-                        })
+                        .insert(
+                            entity,
+                            Attack {
+                                attack_type: AttackType::Melee,
+                                target: *target,
+                            },
+                        )
                         .expect("Unable to add attack");
                     return Some(RunState::PlayerTurn);
                 }
@@ -167,7 +204,9 @@ fn try_get_item(ecs: &mut World) -> Option<RunState> {
     }
 
     match target_item {
-        None => Logger::new().append("There is nothing here to pick up.").log(),
+        None => Logger::new()
+            .append("There is nothing here to pick up.")
+            .log(),
         Some(item) => {
             let mut pickup = ecs.write_storage::<WantsToPickupItem>();
             pickup
@@ -226,16 +265,26 @@ fn try_cycle_targeting(ecs: &mut World) -> Option<RunState> {
 
     match player_ranged_weapon {
         Some(ranged) => {
-            let player_pos = positions.get(*player_entity).expect("Unable to access player position");
+            let player_pos = positions
+                .get(*player_entity)
+                .expect("Unable to access player position");
 
             let mut eligible_monsters = Vec::new();
-            for (monster_entity, _monster, monster_pos) in (&entities, &monsters, &positions).join() {
+            for (monster_entity, _monster, monster_pos) in (&entities, &monsters, &positions).join()
+            {
                 let distance = rltk::DistanceAlg::Pythagoras.distance2d(
-                    Point { x: player_pos.x, y: player_pos.y },
-                    Point { x: monster_pos.x, y: monster_pos.y }
+                    Point {
+                        x: player_pos.x,
+                        y: player_pos.y,
+                    },
+                    Point {
+                        x: monster_pos.x,
+                        y: monster_pos.y,
+                    },
                 );
                 if distance <= ranged.range as f32 {
-                    eligible_monsters.push((map.xy_idx(monster_pos.x, monster_pos.y), monster_entity));
+                    eligible_monsters
+                        .push((map.xy_idx(monster_pos.x, monster_pos.y), monster_entity));
                 }
             }
 
@@ -243,7 +292,9 @@ fn try_cycle_targeting(ecs: &mut World) -> Option<RunState> {
             if !eligible_monsters.is_empty() {
                 match ranged.target {
                     Some(target) => {
-                        let existing_target = eligible_monsters.iter().enumerate()
+                        let existing_target = eligible_monsters
+                            .iter()
+                            .enumerate()
                             .filter(|(_index, (_map_index, monster))| *monster == target)
                             .next();
                         match existing_target {
@@ -254,43 +305,84 @@ fn try_cycle_targeting(ecs: &mut World) -> Option<RunState> {
                                 } else {
                                     ranged.target = Some(eligible_monsters[0].1);
                                 }
-                            },
+                            }
                             None => {
                                 ranged.target = Some(eligible_monsters[0].1);
                             }
                         }
-                    },
+                    }
                     None => {
                         ranged.target = Some(eligible_monsters[0].1);
                     }
                 }
             }
-        },
-        None => {},
+        }
+        None => {}
     }
     return None;
 }
 
-fn try_ranged_target(ecs: &mut World) -> Option<RunState> {
-    let entities = ecs.entities();
-    let player_entity = ecs.fetch::<Entity>();
-    let equipped = ecs.read_storage::<Equipped>();
-    let mut ranged_weapons = ecs.write_storage::<RangedWeapon>();
-    let mut attacks = ecs.write_storage::<Attack>();
+fn try_free_aim(app: &mut App) -> Option<RunState> {
+    let map = app.ecs.fetch::<Map>();
+    let player_pos = app.ecs.fetch::<Point>();
+    let player_entity = app.ecs.fetch::<Entity>();
+    let equipped = app.ecs.read_storage::<Equipped>();
+    let ranged_weapons = app.ecs.read_storage::<RangedWeapon>();
 
-    for (_ranged_entity, equipped, ranged_weapon) in (&entities, &equipped, &mut ranged_weapons).join() {
+    for (equipped, _ranged_weapon) in (&equipped, &ranged_weapons).join() {
         if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
-            match ranged_weapon.target {
-                Some(target) => {
-                    attacks
-                        .insert(*player_entity, Attack {
-                            attack_type: AttackType::Ranged,
-                            target: target
-                        })
-                        .expect("Unable to add attack");
-                    return Some(RunState::PlayerTurn);
-                },
-                None => {},
+            match app.runstate {
+                RunState::FreeAiming { index: _ } => return Some(RunState::AwaitingInput),
+                _ => return Some(RunState::FreeAiming { index: map.xy_idx(player_pos.x, player_pos.y) }),
+            }
+        }
+    }
+    return None;
+}
+
+fn try_ranged_target(app: &mut App) -> Option<RunState> {
+    let entities = app.ecs.entities();
+    let map = app.ecs.fetch::<Map>();
+    let player_entity = app.ecs.fetch::<Entity>();
+    let equipped = app.ecs.read_storage::<Equipped>();
+    let mut ranged_weapons = app.ecs.write_storage::<RangedWeapon>();
+    let mut attacks = app.ecs.write_storage::<Attack>();
+
+    for (_ranged_entity, equipped, ranged_weapon) in
+        (&entities, &equipped, &mut ranged_weapons).join()
+    {
+        if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
+            match app.runstate {                
+                RunState::FreeAiming { index } => {
+                    match map.tile_content[index].iter().next() {
+                        Some(entity) => {
+                            attacks.insert(
+                                *player_entity,
+                                Attack {
+                                    attack_type: AttackType::Ranged,
+                                    target: *entity
+                                }
+                            ).expect("Unable to add attack");
+                            return Some(RunState::PlayerTurn);
+                        },
+                        None => return None,
+                    }
+                }
+                _ => match ranged_weapon.target {
+                    Some(target) => {
+                        attacks
+                            .insert(
+                                *player_entity,
+                                Attack {
+                                    attack_type: AttackType::Ranged,
+                                    target: target,
+                                },
+                            )
+                            .expect("Unable to add attack");
+                        return Some(RunState::PlayerTurn);
+                    },
+                    None => return None,
+                }
             }
         }
     }
