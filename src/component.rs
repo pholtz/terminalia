@@ -5,6 +5,26 @@ use serde::Deserialize;
 use specs::prelude::*;
 use specs_derive::Component;
 
+use crate::generate::config::DiceExpression;
+
+#[derive(PartialEq, Copy, Clone, Debug, Deserialize)]
+pub enum EquipmentSlot {
+    Weapon,
+    Shield,
+    Head,
+    Chest,
+    Hands,
+    Legs,
+    Feet,
+}
+
+#[derive(PartialEq, Copy, Clone, Debug, Deserialize)]
+pub enum DamageType {
+    Piercing,
+    Slashing,
+    Bludgeoning,
+}
+
 #[derive(Component, Clone, Copy)]
 pub struct Position {
     pub x: i32,
@@ -77,17 +97,6 @@ pub struct Potion {
     pub heal_amount: i32,
 }
 
-#[derive(PartialEq, Copy, Clone, Debug, Deserialize)]
-pub enum EquipmentSlot {
-    Weapon,
-    Shield,
-    Head,
-    Chest,
-    Hands,
-    Legs,
-    Feet,
-}
-
 #[derive(Component, Debug)]
 pub struct Equippable {
     pub slot: EquipmentSlot
@@ -101,12 +110,12 @@ pub struct Equipped {
 
 #[derive(Component, Debug)]
 pub struct MeleeWeapon {
-    pub damage: i32,
+    pub damage: DiceExpression,
 }
 
 #[derive(Component, Debug)]
 pub struct RangedWeapon {
-    pub damage: i32,
+    pub damage: DiceExpression,
     pub range: i32,
     pub target: Option<Entity>,
 }

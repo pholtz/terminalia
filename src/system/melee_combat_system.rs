@@ -1,6 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ratatui::style::Color;
+use rltk::RandomNumberGenerator;
 use specs::prelude::*;
 
 use crate::{
@@ -13,6 +14,7 @@ pub struct MeleeCombatSystem {}
 impl<'a> System<'a> for MeleeCombatSystem {
     type SystemData = (
         Entities<'a>,
+        WriteExpect<'a, RandomNumberGenerator>,
         WriteStorage<'a, Attack>,
         ReadStorage<'a, Name>,
         ReadStorage<'a, Stats>,
@@ -36,6 +38,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
     fn run(&mut self, data: Self::SystemData) {
         let (
             entities,
+            mut rng,
             mut attacks,
             names,
             stats,
@@ -59,19 +62,21 @@ impl<'a> System<'a> for MeleeCombatSystem {
                 
                 // target's health
                 if target_stats.hp.current > 0 {
-                    let mut weapon_damage = 0;
+                    let mut weapon_damage: i32 = 1;
                     match attack.attack_type {
                         AttackType::Melee => {
                             for (equipped, melee_weapon) in (&equipment, &melee_weapons).join() {
                                 if equipped.owner == attacker_entity {
-                                    weapon_damage = melee_weapon.damage;
+                                    weapon_damage = rng.roll_dice(melee_weapon.damage.dice_count, melee_weapon.damage.dice_sides)
+                                        + melee_weapon.damage.modifier;
                                 }
                             }
                         },
                         AttackType::Ranged => {
                             for (equipped, ranged_weapon) in (&equipment, &ranged_weapons).join() {
                                 if equipped.owner == attacker_entity {
-                                    weapon_damage = ranged_weapon.damage;
+                                    weapon_damage = rng.roll_dice(ranged_weapon.damage.dice_count, ranged_weapon.damage.dice_sides)
+                                        + ranged_weapon.damage.modifier;
                                 }
                             }
                         }
@@ -84,8 +89,8 @@ impl<'a> System<'a> for MeleeCombatSystem {
                         }
                     }
 
-                    let raw_damage = stat.strength + weapon_damage;
-                    let raw_defense = target_stats.dexterity + armor_defense;
+                    let raw_damage = i32::max(0, ((stat.strength - 10) / 2) + weapon_damage);
+                    let raw_defense = i32::max(0, ((target_stats.dexterity - 10) / 2) + armor_defense);
                     let damage_inflicted = i32::max(0, raw_damage - raw_defense);
 
                     if damage_inflicted == 0 {

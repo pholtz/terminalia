@@ -10,7 +10,7 @@ use crate::{
     component::{
         Armor, BlocksTile, Equippable, Hidden, Inventory, Item, MagicMapper, MeleeWeapon, Monster, Name, Player, Pool, Position, Potion, RangedWeapon, Renderable, Stats, Triggerable, Viewshed
     },
-    generate::{config::{ItemConfig, MonsterConfig, ScrollType}, random_table::RandomTable, rect::Rect},
+    generate::{config::{ItemConfig, MonsterConfig, ScrollType, parse_dice_expression}, random_table::RandomTable, rect::Rect},
 };
 
 lazy_static! {
@@ -105,7 +105,7 @@ pub fn spawn_weighted_item(ecs: &mut World, floor_index: u32, room: &Rect) {
         match &item.melee_weapon {
             Some(melee_weapon) => {
                 entity = entity.with(MeleeWeapon {
-                    damage: melee_weapon.damage,
+                    damage: parse_dice_expression(&melee_weapon.damage),
                 });
             }
             None => {}
@@ -114,7 +114,7 @@ pub fn spawn_weighted_item(ecs: &mut World, floor_index: u32, room: &Rect) {
         match &item.ranged_weapon {
             Some(ranged_weapon) => {
                 entity = entity.with(RangedWeapon {
-                    damage: ranged_weapon.damage,
+                    damage: parse_dice_expression(&ranged_weapon.damage),
                     range: ranged_weapon.range,
                     target: None,
                 });
@@ -272,7 +272,7 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
         })
         .with(Player {})
         .with(Name {
-            name: "player".to_string(),
+            name: "Player the unnamed".to_string(),
         })
         .with(Viewshed {
             visible_tiles: Vec::new(),
@@ -293,15 +293,15 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
                 max: 1_000,
             },
             level: 1,
-            strength: 5,
-            dexterity: 1,
-            constitution: 1,
-            intelligence: 1,
-            wisdom: 1,
-            charisma: 1,
+            strength: 10,
+            dexterity: 10,
+            constitution: 10,
+            intelligence: 10,
+            wisdom: 10,
+            charisma: 10,
         })
         .with(Inventory {
-            gold: 0,
+            gold: 10,
             items: IndexMap::new(),
             index: 0,
         })

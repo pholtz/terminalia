@@ -19,12 +19,12 @@
             "mp": { "current": 0, "max": 0 },
             "exp": { "current": 0, "max": 0 },
             "level": 1,
-            "strength": 2,
-            "dexterity": 0,
-            "constitution": 1,
-            "intelligence": 1,
-            "wisdom": 1,
-            "charisma": 1
+            "strength": 9,
+            "dexterity": 9,
+            "constitution": 9,
+            "intelligence": 9,
+            "wisdom": 9,
+            "charisma": 9
         }
     },
     {
@@ -47,12 +47,12 @@
             "mp": { "current": 0, "max": 0 },
             "exp": { "current": 0, "max": 0 },
             "level": 1,
-            "strength": 1,
-            "dexterity": 2,
-            "constitution": 2,
-            "intelligence": 1,
-            "wisdom": 1,
-            "charisma": 1
+            "strength": 9,
+            "dexterity": 9,
+            "constitution": 9,
+            "intelligence": 9,
+            "wisdom": 9,
+            "charisma": 9
         }
     },
     {
@@ -75,12 +75,12 @@
             "mp": { "current": 0, "max": 0 },
             "exp": { "current": 0, "max": 0 },
             "level": 1,
-            "strength": 1,
-            "dexterity": 1,
-            "constitution": 1,
-            "intelligence": 1,
-            "wisdom": 1,
-            "charisma": 1
+            "strength": 9,
+            "dexterity": 9,
+            "constitution": 9,
+            "intelligence": 9,
+            "wisdom": 9,
+            "charisma": 9
         }
     },
     {
@@ -103,12 +103,12 @@
             "mp": { "current": 0, "max": 0 },
             "exp": { "current": 0, "max": 0 },
             "level": 2,
-            "strength": 2,
-            "dexterity": 2,
-            "constitution": 2,
-            "intelligence": 1,
-            "wisdom": 1,
-            "charisma": 1
+            "strength": 11,
+            "dexterity": 11,
+            "constitution": 10,
+            "intelligence": 9,
+            "wisdom": 9,
+            "charisma": 9
         }
     },
     {
@@ -131,12 +131,12 @@
             "mp": { "current": 0, "max": 0 },
             "exp": { "current": 0, "max": 0 },
             "level": 3,
-            "strength": 4,
-            "dexterity": 2,
-            "constitution": 3,
-            "intelligence": 1,
-            "wisdom": 1,
-            "charisma": 1
+            "strength": 12,
+            "dexterity": 10,
+            "constitution": 12,
+            "intelligence": 10,
+            "wisdom": 10,
+            "charisma": 10
         }
     },
     {
@@ -159,12 +159,12 @@
             "mp": { "current": 0, "max": 0 },
             "exp": { "current": 0, "max": 0 },
             "level": 5,
-            "strength": 5,
-            "dexterity": 3,
-            "constitution": 4,
-            "intelligence": 2,
-            "wisdom": 1,
-            "charisma": 2
+            "strength": 13,
+            "dexterity": 11,
+            "constitution": 12,
+            "intelligence": 10,
+            "wisdom": 10,
+            "charisma": 10
         }
     }
 ]

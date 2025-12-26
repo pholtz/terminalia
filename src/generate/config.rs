@@ -1,6 +1,8 @@
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::Deserialize;
 
-use crate::component::{EquipmentSlot, Pool};
+use crate::component::{DamageType, EquipmentSlot, Pool};
 
 #[derive(Deserialize)]
 pub struct ItemConfig {
@@ -64,12 +66,13 @@ pub struct EquippableConfig {
 
 #[derive(Deserialize)]
 pub struct MeleeWeaponConfig {
-    pub damage: i32
+    pub damage: String,
+    pub damage_type: DamageType,
 }
 
 #[derive(Deserialize)]
 pub struct RangedWeaponConfig {
-    pub damage: i32,
+    pub damage: String,
     pub range: i32
 }
 
@@ -100,4 +103,33 @@ pub struct StatsConfig {
     pub intelligence: i32,
     pub wisdom: i32,
     pub charisma: i32,
+}
+
+#[derive(Debug)]
+pub struct DiceExpression {
+    pub dice_count: i32,
+    pub dice_sides: i32,
+    pub modifier: i32,
+}
+
+pub fn parse_dice_expression(dice : &str) -> DiceExpression {
+    lazy_static! {
+        static ref DICE_RE : Regex = Regex::new(r"(\d+)d(\d+)([\+\-]\d+)?").unwrap();
+    }
+    let mut dice_count = 1;
+    let mut dice_sides = 4;
+    let mut modifier = 0;
+    for cap in DICE_RE.captures_iter(dice) {
+        if let Some(group) = cap.get(1) {
+            dice_count = group.as_str().parse::<i32>().expect("Not a digit");
+        }
+        if let Some(group) = cap.get(2) {
+            dice_sides = group.as_str().parse::<i32>().expect("Not a digit");
+        }
+        if let Some(group) = cap.get(3) {
+            modifier = group.as_str().parse::<i32>().expect("Not a digit");
+        }
+
+    }
+    DiceExpression { dice_count, dice_sides, modifier }
 }

@@ -47,7 +47,8 @@
             "slot": "Weapon"
         },
         "melee_weapon": {
-            "damage": 2
+            "damage": "1d4",
+            "damage_type": "Piercing"
         }
     },
     {
@@ -66,7 +67,8 @@
             "slot": "Weapon"
         },
         "melee_weapon": {
-            "damage": 3
+            "damage": "1d6",
+            "damage_type": "Bludgeoning"
         }
     },
     {
@@ -121,7 +123,8 @@
             "slot": "Weapon"
         },
         "ranged_weapon": {
-            "damage": 4,
+            "damage": "1d6",
+            "damage_type": "Piercing",
             "range": 12
         }
     }
