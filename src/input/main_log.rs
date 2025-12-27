@@ -86,6 +86,13 @@ pub fn handle_main_log_key_event(app: &mut App, key_event: KeyEvent) -> Option<R
     }
 }
 
+/*
+ * Runs whenever the user inputs a system command into the logbook.
+ * 
+ * This is essentially a cheat menu that allows the user to modify
+ * the existing gamestate somehow, either for the user's advantage
+ * or just for testing purposes.
+ */
 pub fn process_command(input: String, ecs: &mut World) {
     if input.starts_with("/health") {
         let player_entity = ecs.read_resource::<Entity>();
@@ -94,5 +101,10 @@ pub fn process_command(input: String, ecs: &mut World) {
             stat.hp.current = stat.hp.max;
             Logger::new().append_with_color(Color::Yellow, "You were healed!").log();
         }
+    }
+
+    // TODO: Spawn named item
+    if input.starts_with("/item") {
+
     }
 }
