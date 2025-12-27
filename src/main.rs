@@ -87,6 +87,8 @@ pub struct App {
     terminal: Size,
     menu_index: u8,
     floor_index: u32,
+    log_index: u8,
+    logbook_input: String,
     exit: bool,
 }
 
@@ -210,7 +212,7 @@ impl App {
                 Screen::Explore => {
                     render_game(&mut self.ecs, frame, self.floor_index, self.terminal)
                 }
-                Screen::Log => render_log(&mut self.ecs, frame),
+                Screen::Log => render_log(self, frame),
                 Screen::Inventory => render_inventory(&mut self.ecs, self.runstate, frame),
                 Screen::Quit { quit } => render_quit(&mut self.ecs, quit, frame),
             },
@@ -314,6 +316,8 @@ fn main() -> Result<()> {
         terminal: terminal.size().unwrap_or_default(),
         menu_index: 0,
         floor_index: 0,
+        log_index: 0,
+        logbook_input: "".to_string(),
         exit: false,
     }
     .run(&mut terminal);
