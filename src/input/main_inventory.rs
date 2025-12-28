@@ -38,6 +38,14 @@ pub fn handle_main_inventory_key_event(app: &mut App, key_event: KeyEvent) -> Op
             app.screen = Screen::Explore;
             return None;
         }
+
+        // Consume without leaving inventory screen
+        KeyCode::Char(' ') => {
+            try_consume_item(&mut app.ecs);
+            return None;
+        }
+
+        // Consume and return to explore screen
         KeyCode::Enter => {
             try_consume_item(&mut app.ecs);
             app.screen = Screen::Explore;

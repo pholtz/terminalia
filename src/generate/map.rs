@@ -42,7 +42,7 @@ impl Map {
      * Given a position tuple, returns the index offset of that position
      * using the single array structured map.
      */
-    pub fn xy_idx(& self, x: i32, y: i32) -> usize {
+    pub fn xy_idx(&self, x: i32, y: i32) -> usize {
         (y as usize * self.width as usize) + x as usize
     }
 

@@ -31,6 +31,15 @@ impl<'a> System<'a> for ExperienceSystem {
                     creator: Some(entity),
                     effect_type: EffectType::LevelUp { level: stat.level },
                 });
+
+                // Upgrade max hp and mp based on attributes
+                let hp_multiplier = std::cmp::max(1, (stat.constitution - 10) / 2);
+                stat.hp.max = stat.hp.max + (2 * hp_multiplier);
+                stat.hp.current = stat.hp.max;
+                let mp_multiplier = std::cmp::max(1, (stat.intelligence - 10) / 2);
+                stat.mp.max = stat.mp.max + (2 * mp_multiplier);
+                stat.mp.current = stat.mp.max;
+
                 Logger::new()
                     .append_with_color(
                         Color::Yellow,

@@ -1,13 +1,14 @@
+use color_eyre::owo_colors::OwoColorize;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Modifier, Style, palette::tailwind::SLATE},
+    style::{Color, Modifier, Style, Stylize, palette::tailwind::SLATE},
     text::{Line, Span, Text},
     widgets::{Block, Borders, List, ListItem, ListState, Padding, Paragraph},
 };
 use specs::prelude::*;
 
-use crate::{RunState, component::{Equipped, Inventory, Item, Name, Stats}, render::game::format_pools};
+use crate::{RunState, component::{Armor, Equipped, Inventory, Item, MeleeWeapon, Name, RangedWeapon, Stats}, render::game::format_pools};
 
 /**
  * This render function fires when the player is ingame and viewing their inventory.
@@ -22,6 +23,9 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
     let equipment = ecs.read_storage::<Equipped>();
     let names = ecs.read_storage::<Name>();
     let stats = ecs.read_storage::<Stats>();
+    let melee_weapons = ecs.read_storage::<MeleeWeapon>();
+    let ranged_weapons = ecs.read_storage::<RangedWeapon>();
+    let armors = ecs.read_storage::<Armor>();
 
     let inventory = inventories
         .get(*player_entity)
@@ -36,41 +40,19 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
         .expect("Unable to retrieve the player's name!");
 
     /*
-     * Create a formatted list of each inventory item.
-     * For the selected item, render the description as well (if present).
+     * Just render inventory in order acquired for now, with no grouping.
      */
-    let mut inventory_list = Vec::new();
-    for (index, (key, value)) in inventory.items.iter().enumerate() {
-        let item = value
-            .first()
-            .expect("Unable to retrieve inventory item entity");
-        let equip_label = if equipment.contains(*item) {
-            "(equipped)"
-        } else {
-            ""
-        };
-
-        let mut line = vec![
-            "".into(),
-            format!("{} x{} {}", key, value.len(), equip_label).into(),
-            "".into(),
-        ];
-        if index == inventory.index {
-            let description = value
-                .first()
-                .map(|item| {
-                    items
-                        .get(*item)
-                        .expect("Unable to retrieve item component for existing inventory item")
-                        .description
-                        .clone()
-                })
-                .unwrap_or_else(|| "???".to_string());
-            line.push(description.into());
-            line.push("".into());
-        }
-        inventory_list.push(ListItem::new(Text::from(line)));
-    }
+    let mut inventory_list: Vec<ListItem> = inventory.items.iter().enumerate()
+        .map(|item| format_inventory_item(
+            item.1.0.clone(),
+            item.1.1.first().expect("Unable to retrieve inventory item entity (top of stack)").clone(),
+            item.1.1.len(),
+            &items,
+            &equipment,
+            &melee_weapons,
+            &ranged_weapons,
+            &armors,
+        )).collect();
 
     let mut state = ListState::default();
     if inventory_list.is_empty() {
@@ -160,6 +142,74 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
         ),
         character_layout[0],
     );
+}
+
+/// Render each inventory item using the given ecs datasets.
+///
+/// We mainly want to show what items the user has in their inventory,
+/// how many of each of them there are, what type of item they are,
+/// whether or not the item is currently equipped, and a little more about
+/// what the item actually is, e.g. it's significance.
+/// 
+/// For some items, like weapons and armor, there may be associated stats
+/// or other data that we want to show.
+fn format_inventory_item<'a>(
+    name: String,
+    item_entity: Entity,
+    count: usize,
+    items: &ReadStorage<Item>,
+    equipped: &ReadStorage<Equipped>,
+    melee_weapons: &ReadStorage<MeleeWeapon>,
+    ranged_weapons: &ReadStorage<RangedWeapon>,
+    armors: &ReadStorage<Armor>,
+) -> ListItem<'a> {
+    let top_line = Line::from(vec![
+        Span::styled(
+            if equipped.contains(item_entity) { " [equipped] " } else { " " },
+            Style::new().fg(Color::Green)
+        ),
+        Span::styled(name, Style::default()),
+        Span::styled(format!(" x {}", count), Style::default()),
+    ]);
+    let description = items.get(item_entity)
+        .map(|item| " ".to_owned() + &item.description.clone())
+        .unwrap_or("???".to_string());
+    let desc_line = Line::from(Span::styled(description, Style::default().italic()));
+
+    let mut lines = vec![
+        "".into(),
+        top_line,
+        "".into(),
+        desc_line,
+        "".into(),
+    ];
+
+    if let Some(melee) = melee_weapons.get(item_entity) {
+        lines.push(format!(" [weapon] Type: Melee | Damage: {}", melee.damage.to_expression()).into());
+        lines.push("".into());
+    }
+
+    if let Some(ranged) = ranged_weapons.get(item_entity) {
+        lines.push(format!(
+            " [weapon] Type: Ranged | Damage: {} | Range: {}",
+            ranged.damage.to_expression(),
+            ranged.range,
+        ).into());
+        lines.push("".into());
+    }
+
+    if let Some(armor) = armors.get(item_entity) {
+        lines.push(format!(
+            " [armor] Type: {} | Defense: {}",
+            "???",
+            armor.defense,
+        ).into());
+        lines.push("".into());
+    }
+
+    let text = Text::from(lines);
+    // TODO: This doesn't wrap descriptions or anything else :(
+    return ListItem::new(text);
 }
 
 pub struct FormattedStats {

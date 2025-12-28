@@ -127,5 +127,25 @@
             "damage_type": "Piercing",
             "range": 12
         }
+    },
+    {
+        "name": "Side sword",
+        "description": "A short, ornate sword with an excellent point and edge capable of both thrusting and slashing",
+        "renderable": {
+            "glyph": "/",
+            "fg": "#DDDDDD",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 1,
+            "base_weight": 5
+        },
+        "equippable": {
+            "slot": "Weapon"
+        },
+        "melee_weapon": {
+            "damage": "1d6+1",
+            "damage_type": "Piercing"
+        }
     }
 ]

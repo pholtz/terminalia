@@ -112,6 +112,23 @@ pub struct DiceExpression {
     pub modifier: i32,
 }
 
+impl DiceExpression {
+    pub fn to_expression(&self) -> String {
+        return format!(
+            "{}d{}{}",
+            self.dice_count,
+            self.dice_sides,
+            if self.modifier == 0 { "".to_string() } else {
+                format!(
+                    "{}{}",
+                    if self.modifier > 0 { "+" } else { "-" },
+                    self.modifier
+                )
+            }
+        );
+    }
+}
+
 pub fn parse_dice_expression(dice : &str) -> DiceExpression {
     lazy_static! {
         static ref DICE_RE : Regex = Regex::new(r"(\d+)d(\d+)([\+\-]\d+)?").unwrap();

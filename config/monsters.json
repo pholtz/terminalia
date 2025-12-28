@@ -59,7 +59,7 @@
         "name": "Bat",
         "description": "Small and furry, kinda cute honestly. Oh fuck, are those fangs?",
         "renderable": {
-            "glyph": "w",
+            "glyph": "b",
             "fg": "#FF0000",
             "index": 1
         },
@@ -77,6 +77,34 @@
             "level": 1,
             "strength": 9,
             "dexterity": 9,
+            "constitution": 9,
+            "intelligence": 9,
+            "wisdom": 9,
+            "charisma": 9
+        }
+    },
+    {
+        "name": "Mangy Wolf",
+        "description": "Small (for a wolf). All teeth, growls, and matted fur. Looks hungry.",
+        "renderable": {
+            "glyph": "w",
+            "fg": "#FF0000",
+            "index": 1
+        },
+        "spawn": {
+            "min_floor": 0,
+            "base_weight": 15
+        },
+        "viewshed": {
+            "range": 10
+        },
+        "stats": {
+            "hp": { "current": 8, "max": 8 },
+            "mp": { "current": 0, "max": 0 },
+            "exp": { "current": 0, "max": 0 },
+            "level": 2,
+            "strength": 10,
+            "dexterity": 12,
             "constitution": 9,
             "intelligence": 9,
             "wisdom": 9,

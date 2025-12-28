@@ -57,6 +57,9 @@ impl<'a> System<'a> for MeleeCombatSystem {
         {
             // attacker's health
             if stat.hp.current > 0 {
+                if !stats.contains(attack.target) {
+                    continue;
+                }
                 let target_stats = stats.get(attack.target).unwrap();
                 let target_name = names.get(attack.target).unwrap();
                 
