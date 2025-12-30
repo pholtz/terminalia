@@ -1,0 +1,15 @@
+[
+    {
+        "drop_type": "Animal",
+        "drops": [
+            {
+                "name": "Animal Hide",
+                "weight": 10
+            },
+            {
+                "name": "Animal Bones",
+                "weight": 5
+            }
+        ]
+    }
+]

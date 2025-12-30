@@ -28,6 +28,26 @@ pub struct MonsterConfig {
     pub spawn: Option<SpawnConfig>,
     pub viewshed: Option<ViewshedConfig>,
     pub stats: Option<StatsConfig>,
+    pub drop_type: Option<DropType>,
+}
+
+#[derive(Deserialize)]
+pub struct DropConfig {
+    pub drop_type: DropType,
+    pub drops: Vec<DropChoiceConfig>,
+}
+
+#[derive(Deserialize)]
+pub struct DropChoiceConfig {
+    pub name: String,
+    pub weight: i32,
+}
+
+#[derive(Deserialize, PartialEq, Debug, Clone)]
+pub enum DropType {
+    Animal,
+    Goblin,
+    Orc
 }
 
 #[derive(Deserialize)]

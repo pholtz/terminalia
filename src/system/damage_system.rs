@@ -1,7 +1,7 @@
 use ratatui::style::Color;
 use specs::prelude::*;
 
-use crate::{Damage, Name, Player, Stats, component::{Experience, Monster, Position}, generate::map::Map, logbook::logbook::Logger};
+use crate::{Damage, Name, Player, Stats, component::{Experience, Monster, Position}, generate::{config::DropType, map::Map, spawn::spawn_weighted_drop}, logbook::logbook::Logger};
 
 pub struct DamageSystem {}
 
@@ -46,13 +46,15 @@ impl <'a> System<'a> for DamageSystem {
 
 pub fn cleanup_dead_entities(ecs: &mut World) {
     let mut dead: Vec<Entity> = Vec::new();
+    let mut drops: Vec<(DropType, Position)> = Vec::new();
     {
         let entities = ecs.entities();
         let stats = ecs.read_storage::<Stats>();
         let names = ecs.read_storage::<Name>();
         let monsters = ecs.read_storage::<Monster>();
+        let positions = ecs.read_storage::<Position>();
         let player_entity = ecs.fetch::<Entity>();
-        for (entity, stats, name) in (&entities, &stats, &names).join() {
+        for (entity, stats, name, position) in (&entities, &stats, &names, &positions).join() {
             if stats.hp.current <= 0 {
                 Logger::new()
                     .with_color(
@@ -64,9 +66,21 @@ pub fn cleanup_dead_entities(ecs: &mut World) {
                     .with_color(Color::White)
                     .append("has died.")
                     .log();
+
+                if let Some(monster) = monsters.get(entity) {
+                    match &monster.drop_type {
+                        Some(drop_type) => drops.push((drop_type.clone(), *position)),
+                        None => {}
+                    }
+                }
+
                 dead.push(entity);
             }
         }
+    }
+
+    for (drop_type, position) in drops {
+        spawn_weighted_drop(ecs, drop_type, position);
     }
 
     for victim in dead {

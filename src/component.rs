@@ -5,7 +5,7 @@ use serde::Deserialize;
 use specs::prelude::*;
 use specs_derive::Component;
 
-use crate::generate::config::DiceExpression;
+use crate::generate::config::{DiceExpression, DropType};
 
 #[derive(PartialEq, Copy, Clone, Debug, Deserialize)]
 pub enum EquipmentSlot {
@@ -43,7 +43,9 @@ pub struct Renderable {
 pub struct Player {}
 
 #[derive(Component, Debug)]
-pub struct Monster {}
+pub struct Monster {
+    pub drop_type: Option<DropType>
+}
 
 #[derive(Component, Debug)]
 pub struct Name {

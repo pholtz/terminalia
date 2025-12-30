@@ -147,5 +147,31 @@
             "damage": "1d6+1",
             "damage_type": "Piercing"
         }
+    },
+    {
+        "name": "Animal Hide",
+        "description": "A roughly hewn length of fur and flesh from a downed creature",
+        "renderable": {
+            "glyph": "%",
+            "fg": "#AAAAAA",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 0,
+            "base_weight": 1
+        }
+    },
+    {
+        "name": "Animal Bones",
+        "description": "A small pile of bones from a downed creature",
+        "renderable": {
+            "glyph": "%",
+            "fg": "#AAAAAA",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 0,
+            "base_weight": 1
+        }
     }
 ]
