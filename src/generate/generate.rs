@@ -50,6 +50,7 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
         height: 100,
         has_upstairs: floor_index != 0,
         has_downstairs: true,
+        has_debris: true,
     });
     let (player_x, player_y) = map.rooms[0].center();
 

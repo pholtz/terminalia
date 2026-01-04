@@ -16,7 +16,7 @@ use crate::{
     },
     generate::map::{Map, TileType},
     logbook::logbook::format_text,
-    system::ranged_combat_system::{get_eligible_ranged_tiles},
+    system::ranged_combat_system::get_eligible_ranged_tiles,
 };
 
 pub const VIEW_WIDTH: i32 = 80;
@@ -86,6 +86,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                     TileType::Wall => Span::styled("#", Style::default().fg(Color::Green)),
                     TileType::DownStairs => Span::styled(">", Style::default().fg(Color::Yellow)),
                     TileType::UpStairs => Span::styled("<", Style::default().fg(Color::Yellow)),
+                    TileType::Debris => Span::styled("◯", Style::default().fg(Color::White)),
                 }
             } else {
                 span = Span::styled(" ", Style::default());
@@ -121,6 +122,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
         if pos.x < map_min.x || map_max.x < pos.x || pos.y < map_min.y || map_max.y < pos.y {
             continue;
         }
+
         let view_pos = Position {
             x: pos.x - map_min.x,
             y: pos.y - map_min.y,
@@ -176,7 +178,11 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                             existing_span.content,
                             Style::default()
                                 .fg(existing_span.style.fg.unwrap_or(Color::White))
-                                .bg(if index == *tile_index { Color::Red } else { Color::LightGreen }),
+                                .bg(if index == *tile_index {
+                                    Color::Red
+                                } else {
+                                    Color::LightGreen
+                                }),
                         );
                     }
                 }
@@ -235,22 +241,46 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
      */
     let text: Text = match *runstate {
         RunState::Examining { index } => {
-            let mut serialized_examine: String = "".to_string();
-            for entity in map.tile_content.get(index).unwrap_or(&Vec::new()).iter() {
-                if let Some(name) = names.get(*entity) {
-                    serialized_examine = name.name.clone();
+            if *map.revealed_tiles.get(index).unwrap_or(&false) {
+                let mut serialized_examine: String = "".to_string();
+                for entity in map.tile_content.get(index).unwrap_or(&Vec::new()).iter() {
+                    let name = names.get(*entity);
+                    let item = items.get(*entity);
+
+                    if let Some(name) = name {
+                        if !serialized_examine.is_empty() {
+                            serialized_examine.push('\n');
+                        }
+                        serialized_examine.push_str(&name.name);
+                    }
+
+                    if let Some(item) = item {
+                        if !serialized_examine.is_empty() {
+                            serialized_examine.push('\n');
+                        }
+                        serialized_examine.push_str(&item.description);
+                    }
+
+                    if name.is_some() || item.is_some() {
+                        break; // only examine the first entity
+                    }
                 }
 
-                if let Some(item) = items.get(*entity) {
-                    serialized_examine.push('\n');
-                    serialized_examine.push_str(&item.description);
+                // Always include TileType details below entity details
+                if let Some(tile_type) = map.tiles.get(index) {
+                    if !serialized_examine.is_empty() {
+                        serialized_examine.push('\n');
+                    }
+                    serialized_examine.push_str(&format!(
+                        "Tile: {:?} -> {}",
+                        tile_type,
+                        tile_type.description()
+                    ));
                 }
-
-                if !serialized_examine.is_empty() {
-                    break;
-                }
+                Text::raw(serialized_examine)
+            } else {
+                Text::from("???")
             }
-            Text::raw(serialized_examine)
         }
         _ => format_text(4),
     };

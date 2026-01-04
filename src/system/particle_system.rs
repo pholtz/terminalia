@@ -25,6 +25,7 @@ impl<'a> System<'a> for ParticleSystem {
             .expect("uhhhh")
             .as_millis();
 
+        // Delete particles which have an expired lifetime
         let mut lifetimes_to_delete: Vec<Entity> = Vec::new();
         for (entity, lifetime) in (&entities, &lifetimes).join() {
             if (current_ms - lifetime.created_at) > lifetime.lifetime_ms {

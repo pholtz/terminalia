@@ -7,16 +7,29 @@ use specs::Entity;
 use crate::generate::rect::Rect;
 
 // Room constants
-pub const MIN_SIZE: i32 = 6;
-pub const MAX_SIZE: i32 = 10;
-pub const MAX_ROOMS: i32 = 30;
+pub const MIN_SIZE: i32 = 8;
+pub const MAX_SIZE: i32 = 16;
+pub const MAX_ROOMS: i32 = 25;
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum TileType {
     Wall,
     Floor,
     DownStairs,
     UpStairs,
+    Debris,
+}
+
+impl TileType {
+    pub const fn description(&self) -> &'static str {
+        match self {
+           TileType::Wall => "It's a chunk of rough wall.",
+           TileType::Floor => "It's a patch of rough ground.",
+           TileType::DownStairs => "A narrow staircase leading further downwards.",
+           TileType::UpStairs => "A narrow staircase leading further upwards.",
+           TileType::Debris => "A large pile of rocks, too big to climb over",
+        }
+    }
 }
 
 pub struct MapOptions {
@@ -24,6 +37,7 @@ pub struct MapOptions {
     pub height: i32,
     pub has_upstairs: bool,
     pub has_downstairs: bool,
+    pub has_debris: bool,
 }
 
 pub struct Map {
@@ -68,19 +82,19 @@ impl Map {
         }
     }
     
-    fn apply_horizontal_tunnel(&mut self, x1:i32, x2:i32, y:i32) {
+    fn apply_horizontal_tunnel(&mut self, width: usize, height: usize, x1:i32, x2:i32, y:i32) {
         for x in min(x1,x2) ..= max(x1,x2) {
             let idx = self.xy_idx(x, y);
-            if idx > 0 && idx < 80*50 {
+            if idx > 0 && idx < width * height {
                 self.tiles[idx as usize] = TileType::Floor;
             }
         }
     }
     
-    fn apply_vertical_tunnel(&mut self, y1:i32, y2:i32, x:i32) {
+    fn apply_vertical_tunnel(&mut self, width: usize, height: usize, y1:i32, y2:i32, x:i32) {
         for y in min(y1,y2) ..= max(y1,y2) {
             let idx = self.xy_idx(x, y);
-            if idx > 0 && idx < 80*50 {
+            if idx > 0 && idx < width * height {
                 self.tiles[idx as usize] = TileType::Floor;
             }
         }
@@ -94,7 +108,10 @@ impl Map {
 
     pub fn populate_blocked(&mut self) {
         for (index, tile) in self.tiles.iter_mut().enumerate() {
-            self.blocked_tiles[index] = *tile == TileType::Wall;
+            self.blocked_tiles[index] = match *tile {
+                TileType::Wall | TileType::Debris => true,
+                _ => false,
+            }
         }
     }
 
@@ -122,8 +139,8 @@ impl Map {
         for _ in 0..MAX_ROOMS {
             let w = rng.range(MIN_SIZE, MAX_SIZE);
             let h = rng.range(MIN_SIZE, MAX_SIZE);
-            let x = rng.roll_dice(1, 80 - w - 1) - 1;
-            let y = rng.roll_dice(1, 50 - h - 1) - 1;
+            let x = rng.roll_dice(1, options.width - w - 1) - 1;
+            let y = rng.roll_dice(1, options.height - h - 1) - 1;
             let new_room = Rect::new(x, y, w, h);
             let mut ok = true;
             for other_room in map.rooms.iter() {
@@ -135,11 +152,11 @@ impl Map {
                     let (new_x, new_y) = new_room.center();
                     let (prev_x, prev_y) = map.rooms[map.rooms.len() - 1].center();
                     if rng.range(0, 2) == 1 {
-                        map.apply_horizontal_tunnel(prev_x, new_x, prev_y);
-                        map.apply_vertical_tunnel(prev_y, new_y, new_x);
+                        map.apply_horizontal_tunnel(width, height, prev_x, new_x, prev_y);
+                        map.apply_vertical_tunnel(width, height, prev_y, new_y, new_x);
                     } else {
-                        map.apply_vertical_tunnel(prev_y, new_y, prev_x);
-                        map.apply_horizontal_tunnel(prev_x, new_x, new_y);
+                        map.apply_vertical_tunnel(width, height, prev_y, new_y, prev_x);
+                        map.apply_horizontal_tunnel(width, height, prev_x, new_x, new_y);
                     }
                 }
                 info!("Spawned new room with position ({}, {}) - ({}, {})", new_room.x1, new_room.y1, new_room.x2, new_room.y2);
@@ -158,6 +175,22 @@ impl Map {
             let downstair_index = map.xy_idx(downstair_x, downstair_y);
             map.tiles[downstair_index] = TileType::DownStairs;
         }
+
+        if options.has_debris {
+            for room in map.rooms.iter() {
+                for _ in 0..rng.range(0, 7) {
+                    let debris_x = rng.range(room.x1, room.x2);
+                    let debris_y = rng.range(room.y1, room.y2);
+                    let debris_index = map.xy_idx(debris_x, debris_y);
+                    match map.tiles[debris_index] {
+                        TileType::Floor => map.tiles[debris_index] = TileType::Debris,
+                        _ => {},
+                    }
+                }
+            }
+        }
+
+        // TODO: Ensure map is solvable
 
         return map;
     }

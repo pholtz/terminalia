@@ -113,8 +113,10 @@ fn try_move_examine(app: &mut App, delta_x: i32, delta_y: i32) -> Option<RunStat
         RunState::Examining { index } => {
             let map = app.ecs.fetch::<Map>();
             let (x, y) = map.idx_xy(index);
+            let next_x = min(map.width - 1, max(0, x + delta_x));
+            let next_y = min(map.height - 1, max(0, y + delta_y));
             return Some(RunState::Examining {
-                index: map.xy_idx(x + delta_x, y + delta_y),
+                index: map.xy_idx(next_x, next_y),
             });
         }
         _ => None,
@@ -340,6 +342,12 @@ fn try_free_aim(app: &mut App) -> Option<RunState> {
     return None;
 }
 
+/// 
+/// Attacks the currently selected ranged target with the currently equipped
+/// ranged weapon, if possible.
+/// 
+/// Handles both freeaim and targeting scenarios.
+/// 
 fn try_ranged_target(app: &mut App) -> Option<RunState> {
     let entities = app.ecs.entities();
     let map = app.ecs.fetch::<Map>();

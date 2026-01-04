@@ -1,4 +1,3 @@
-use log::info;
 use rltk::{Point, line2d};
 use specs::prelude::*;
 
@@ -42,42 +41,6 @@ impl<'a> System<'a> for RangedCombatSystem {
                 None => {}
             }
         }
-
-        /*
-         * Targeting system
-         * If the player is wielding a ranged weapon and does not already have an assigned target,
-         * attempt to assign one. If no visible enemies are within range, then do nothing.
-         *
-         * Likely move this to it's own system or find a better place for it...
-         */
-        /*
-        for (item_entity, equipped, ranged) in (&entities, &equipment, &mut ranged_weapons).join() {
-            if equipped.owner != *player_entity
-                || equipped.slot != EquipmentSlot::Weapon
-                || ranged.target.is_some()
-            {
-                continue;
-            }
-            for (monster_entity, _monster, monster_pos) in (&entities, &monsters, &positions).join() {
-                let distance = rltk::DistanceAlg::Pythagoras.distance2d(
-                    Point { x: player_position.x, y: player_position.y },
-                    Point {
-                        x: monster_pos.x,
-                        y: monster_pos.y,
-                    },
-                );
-                if distance <= ranged.range as f32 {
-                    info!(
-                        "{} takes aim at {} with a {}",
-                        names.get(*player_entity).unwrap().name,
-                        names.get(monster_entity).unwrap().name,
-                        names.get(item_entity).unwrap().name
-                    );
-                    ranged.target = Some(monster_entity);
-                }
-            }
-        }
-        */
     }
 }
 

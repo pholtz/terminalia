@@ -1,12 +1,15 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ratatui::style::Color;
-use rltk::RandomNumberGenerator;
+use rltk::{Point, RandomNumberGenerator, line2d};
 use specs::prelude::*;
 
 use crate::{
     Attack, Damage, Name, Stats,
-    component::{Armor, AttackType, Equipped, Lifetime, MeleeWeapon, Position, RangedWeapon, Renderable}, logbook::logbook::Logger,
+    component::{
+        Armor, AttackType, Equipped, Lifetime, MeleeWeapon, Position, RangedWeapon, Renderable,
+    },
+    logbook::logbook::Logger,
 };
 
 pub struct MeleeCombatSystem {}
@@ -62,7 +65,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
                 }
                 let target_stats = stats.get(attack.target).unwrap();
                 let target_name = names.get(attack.target).unwrap();
-                
+
                 // target's health
                 if target_stats.hp.current > 0 {
                     let mut weapon_damage: i32 = 1;
@@ -70,16 +73,20 @@ impl<'a> System<'a> for MeleeCombatSystem {
                         AttackType::Melee => {
                             for (equipped, melee_weapon) in (&equipment, &melee_weapons).join() {
                                 if equipped.owner == attacker_entity {
-                                    weapon_damage = rng.roll_dice(melee_weapon.damage.dice_count, melee_weapon.damage.dice_sides)
-                                        + melee_weapon.damage.modifier;
+                                    weapon_damage = rng.roll_dice(
+                                        melee_weapon.damage.dice_count,
+                                        melee_weapon.damage.dice_sides,
+                                    ) + melee_weapon.damage.modifier;
                                 }
                             }
-                        },
+                        }
                         AttackType::Ranged => {
                             for (equipped, ranged_weapon) in (&equipment, &ranged_weapons).join() {
                                 if equipped.owner == attacker_entity {
-                                    weapon_damage = rng.roll_dice(ranged_weapon.damage.dice_count, ranged_weapon.damage.dice_sides)
-                                        + ranged_weapon.damage.modifier;
+                                    weapon_damage = rng.roll_dice(
+                                        ranged_weapon.damage.dice_count,
+                                        ranged_weapon.damage.dice_sides,
+                                    ) + ranged_weapon.damage.modifier;
                                 }
                             }
                         }
@@ -93,12 +100,16 @@ impl<'a> System<'a> for MeleeCombatSystem {
                     }
 
                     let raw_damage = i32::max(0, ((stat.strength - 10) / 2) + weapon_damage);
-                    let raw_defense = i32::max(0, ((target_stats.dexterity - 10) / 2) + armor_defense);
+                    let raw_defense =
+                        i32::max(0, ((target_stats.dexterity - 10) / 2) + armor_defense);
                     let damage_inflicted = i32::max(0, raw_damage - raw_defense);
 
                     if damage_inflicted == 0 {
                         Logger::new()
-                            .append(format!("{} is too weak to hurt {}", &name.name, &target_name.name))
+                            .append(format!(
+                                "{} is too weak to hurt {}",
+                                &name.name, &target_name.name
+                            ))
                             .log();
                         continue;
                     }
@@ -108,27 +119,132 @@ impl<'a> System<'a> for MeleeCombatSystem {
                             &name.name, &target_name.name, damage_inflicted
                         ))
                         .log();
-                    Damage::new_damage(&mut damages, Some(attacker_entity), attack.target, damage_inflicted);
+                    Damage::new_damage(
+                        &mut damages,
+                        Some(attacker_entity),
+                        attack.target,
+                        damage_inflicted,
+                    );
 
                     /*
                      * Create combat particle representing an attack animation.
                      */
                     if let Some(pos) = positions.get(attack.target) {
-                        entities.build_entity()
-                            .with(pos.clone(), &mut positions)
-                            .with(Renderable { glyph: '\\', fg: Color::White, bg: Color::Gray, index: 0 }, &mut renderables)
-                            .with(Lifetime {
-                                created_at: SystemTime::now()
-                                    .duration_since(UNIX_EPOCH)
-                                    .expect("uhhhh")
-                                    .as_millis(),
-                                lifetime_ms: 200,
-                            }, &mut lifetimes)
-                            .build();
+                        match attack.attack_type {
+                            AttackType::Melee => {
+                                entities
+                                    .build_entity()
+                                    .with(pos.clone(), &mut positions)
+                                    .with(
+                                        Renderable {
+                                            glyph: '\\',
+                                            fg: Color::White,
+                                            bg: Color::Gray,
+                                            index: 0,
+                                        },
+                                        &mut renderables,
+                                    )
+                                    .with(
+                                        Lifetime {
+                                            created_at: SystemTime::now()
+                                                .duration_since(UNIX_EPOCH)
+                                                .expect("uhhhh")
+                                                .as_millis(),
+                                            lifetime_ms: 200,
+                                        },
+                                        &mut lifetimes,
+                                    )
+                                    .build();
+                            }
+                            AttackType::Ranged => {
+                                let attacker_pos = positions
+                                    .get(attacker_entity)
+                                    .expect("Unable to access ranged attacker position");
+                                let target_pos = positions
+                                    .get(attack.target)
+                                    .expect("Unable to access ranged target position");
+                                let line_points = line2d(
+                                    rltk::LineAlg::Bresenham,
+                                    Point {
+                                        x: attacker_pos.x,
+                                        y: attacker_pos.y,
+                                    },
+                                    Point {
+                                        x: target_pos.x,
+                                        y: target_pos.y,
+                                    },
+                                );
+                                let mut prev_point: Option<Point> = None;
+                                for point in line_points.iter() {
+                                    let glyph = prev_point
+                                        .map(|prev| {
+                                            generate_directional_ranged_attack_glyph(prev, *point)
+                                        })
+                                        .unwrap_or('-');
+                                    entities
+                                        .build_entity()
+                                        .with(
+                                            Position {
+                                                x: point.x,
+                                                y: point.y,
+                                            },
+                                            &mut positions,
+                                        )
+                                        .with(
+                                            Renderable {
+                                                glyph: glyph,
+                                                fg: Color::White,
+                                                bg: Color::default(),
+                                                index: 0,
+                                            },
+                                            &mut renderables,
+                                        )
+                                        .with(
+                                            Lifetime {
+                                                created_at: SystemTime::now()
+                                                    .duration_since(UNIX_EPOCH)
+                                                    .expect("uhhhh")
+                                                    .as_millis(),
+                                                lifetime_ms: 100,
+                                            },
+                                            &mut lifetimes,
+                                        )
+                                        .build();
+                                    prev_point = Some(*point);
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
         attacks.clear();
     }
+}
+
+fn generate_directional_ranged_attack_glyph(previous: Point, current: Point) -> char {
+    if previous.x == current.x {
+        return '|';
+    }
+
+    if previous.y == current.y {
+        return '-';
+    }
+
+    if previous.x < current.x && previous.y < current.y {
+        return '\\';
+    }
+
+    if previous.x < current.x && previous.y > current.y {
+        return '/';
+    }
+
+    if previous.x > current.x && previous.y < current.y {
+        return '/';
+    }
+
+    if previous.x > current.x && previous.y > current.y {
+        return '\\';
+    }
+    return '-';
 }
