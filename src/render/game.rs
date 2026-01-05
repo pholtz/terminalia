@@ -11,8 +11,7 @@ use specs::prelude::*;
 use crate::{
     RunState,
     component::{
-        EquipmentSlot, Equipped, Hidden, Inventory, Item, Name, Pool, Position, RangedWeapon,
-        Renderable, Stats,
+        EquipmentSlot, Equipped, Hidden, Inventory, Item, MagicWeapon, Name, Pool, Position, RangedWeapon, Renderable, Stats
     },
     generate::map::{Map, TileType},
     logbook::logbook::format_text,
@@ -38,6 +37,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
     let runstate = ecs.fetch::<RunState>();
     let player_entity = ecs.fetch::<Entity>();
     let player_position = ecs.fetch::<Point>();
+    let entities = ecs.entities();
     let positions = ecs.read_storage::<Position>();
     let renderables = ecs.read_storage::<Renderable>();
     let hidden = ecs.read_storage::<Hidden>();
@@ -47,6 +47,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
     let names = ecs.read_storage::<Name>();
     let items = ecs.read_storage::<Item>();
     let ranged_weapons = ecs.read_storage::<RangedWeapon>();
+    let magic_weapons = ecs.read_storage::<MagicWeapon>();
     let equipped = ecs.read_storage::<Equipped>();
 
     // Define the min (top left), and max (bottom right) of the viewport
@@ -137,6 +138,11 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
         );
     }
 
+    // Create a bitmask to allow us to union (OR) ranged and magic weapons
+    let mut ranged_mask = BitSet::new();
+    ranged_mask |= ranged_weapons.mask();
+    ranged_mask |= magic_weapons.mask();
+
     /*
      * E X A M I N I N G
      * If the player is in examine mode, overwrite the background of the field
@@ -162,10 +168,13 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
             );
         }
         RunState::FreeAiming { index } => {
-            for (equipped, ranged) in (&equipped, &ranged_weapons).join() {
+            for (entity, equipped, _) in (&entities, &equipped, &ranged_mask).join() {
+                let ranged = ranged_weapons.get(entity);
+                let magic = magic_weapons.get(entity);
+                let range = ranged.map(|r| r.range).unwrap_or_else(|| magic.map(|m| m.range).unwrap_or(0));
                 if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
                     let eligible_tiles =
-                        get_eligible_ranged_tiles(&map, &player_position, ranged.range);
+                        get_eligible_ranged_tiles(&map, &player_position, range);
                     for tile_index in eligible_tiles.iter() {
                         let (tile_x, tile_y) = map.idx_xy(*tile_index);
                         let view_pos = Position {
@@ -196,11 +205,14 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
      * If the player is targeting an enemy, we should overwrite the background
      * of the entity with a bright color to indicate that it is targeted.
      */
-    for (ranged_weapon, equipped) in (&ranged_weapons, &equipped).join() {
+    for (entity, equipped, _) in (&entities, &equipped, &ranged_mask).join() {
+        let ranged = ranged_weapons.get(entity);
+        let magic = magic_weapons.get(entity);
+        let target = ranged.map(|r| r.target).unwrap_or_else(|| magic.map(|m| m.target).unwrap_or(None));
         let is_ranged = equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player;
-        let is_targeting = ranged_weapon.target.is_some();
+        let is_targeting = target.is_some();
         if is_ranged && is_targeting {
-            if let Some(target_pos) = positions.get(ranged_weapon.target.unwrap()) {
+            if let Some(target_pos) = positions.get(target.unwrap()) {
                 // Renderable is outside of the current viewport
                 if target_pos.x < map_min.x
                     || map_max.x < target_pos.x

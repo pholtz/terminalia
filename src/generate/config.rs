@@ -15,6 +15,8 @@ pub struct ItemConfig {
     pub equippable: Option<EquippableConfig>,
     pub melee_weapon: Option<MeleeWeaponConfig>,
     pub ranged_weapon: Option<RangedWeaponConfig>,
+    pub magic_weapon: Option<MagicWeaponConfig>,
+    pub spells: Option<Vec<SpellConfig>>,
     pub armor: Option<ArmorConfig>,
     pub hidden: Option<bool>,
     pub triggerable: Option<TriggerableConfig>,
@@ -97,6 +99,18 @@ pub struct RangedWeaponConfig {
 }
 
 #[derive(Deserialize)]
+pub struct MagicWeaponConfig {}
+
+#[derive(Deserialize)]
+pub struct SpellConfig {
+    pub name: String,
+    pub mp_cost: i32,
+    pub damage: String,
+    pub damage_type: DamageType,
+    pub range: i32,
+}
+
+#[derive(Deserialize)]
 pub struct ArmorConfig {
     pub defense: i32
 }
@@ -125,7 +139,7 @@ pub struct StatsConfig {
     pub charisma: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DiceExpression {
     pub dice_count: i32,
     pub dice_sides: i32,

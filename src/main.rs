@@ -27,7 +27,7 @@ use system::{
 
 use crate::{
     component::{
-        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack, Inventory, Item, Lifetime, MagicMapper, MeleeWeapon, Monster, Name, Player, Position, Potion, RangedWeapon, Renderable, Stats, Triggerable, Viewshed, WantsToConsumeItem, WantsToPickupItem
+        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack, Inventory, Item, Lifetime, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Player, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Viewshed, WantsToConsumeItem, WantsToPickupItem
     }, damage_system::DamageSystem, effect::effect::process_effects, generate::{generate::{generate_floor, reset_floor}, spawn::initialize_config}, input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
         main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event, main_quit::handle_main_quit_key_event,
@@ -249,7 +249,10 @@ fn reinitialize_world() -> World {
     world.register::<Equipped>();
     world.register::<MeleeWeapon>();
     world.register::<RangedWeapon>();
+    world.register::<MagicWeapon>();
     world.register::<Armor>();
+    world.register::<Spell>();
+    world.register::<SpellKnowledge>();
     world.register::<Lifetime>();
     world.register::<Hidden>();
     world.register::<Triggerable>();

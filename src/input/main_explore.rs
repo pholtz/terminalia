@@ -1,16 +1,15 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use rltk::Point;
-use specs::prelude::*;
+use specs::{prelude::*, storage::GenericWriteStorage};
 use std::cmp::{max, min};
 
 use crate::{
     App, RunState, Screen,
     component::{
-        Attack, AttackType, EquipmentSlot, Equipped, Item, Monster, Player, Pool, Position,
-        RangedWeapon, Stats, WantsToPickupItem,
+        Attack, AttackType, EquipmentSlot, Equipped, Item, MagicWeapon, Monster, Player, Pool, Position, RangedWeapon, SpellKnowledge, Stats, WantsToPickupItem
     },
     generate::map::{Map, TileType},
-    logbook::logbook::Logger, system::ranged_combat_system::{get_eligible_ranged_tiles},
+    logbook::logbook::Logger, system::ranged_combat_system::get_eligible_ranged_tiles,
 };
 
 pub fn handle_main_explore_key_event(
@@ -76,6 +75,7 @@ pub fn handle_main_explore_key_event(
         KeyCode::Tab => try_cycle_targeting(&mut app.ecs),
         KeyCode::Char(' ') => try_free_aim(app),
         KeyCode::Char('1') => try_ranged_target(app),
+        KeyCode::Char('2') => try_magic_target(app),
         KeyCode::Char('g') => try_get_item(&mut app.ecs),
         KeyCode::Char('i') => {
             app.screen = Screen::Inventory;
@@ -129,13 +129,20 @@ fn try_move_free_aim(app: &mut App, delta_x: i32, delta_y: i32) -> Option<RunSta
             let map = app.ecs.fetch::<Map>();
             let player_pos = app.ecs.fetch::<Point>();
             let player_entity = app.ecs.fetch::<Entity>();
+            let entities = app.ecs.entities();
             let equipped = app.ecs.read_storage::<Equipped>();
             let ranged_weapons = app.ecs.read_storage::<RangedWeapon>();
-            for (equipped, ranged) in (&equipped, &ranged_weapons).join() {
+            let magic_weapons = app.ecs.read_storage::<MagicWeapon>();
+            let ranged_mask = ranged_weapons.mask() | magic_weapons.mask();
+
+            for (entity, equipped, _) in (&entities, &equipped, &ranged_mask).join() {
+                let ranged = ranged_weapons.get(entity);
+                let magic = magic_weapons.get(entity);
+                let range = ranged.map(|r| r.range).unwrap_or_else(|| magic.map(|m| m.range).unwrap_or(0));
                 if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
                     let (x, y) = map.idx_xy(index);
                     let target_index = map.xy_idx(x + delta_x, y + delta_y);
-                    let eligible_tiles = get_eligible_ranged_tiles(&map, &player_pos, ranged.range);
+                    let eligible_tiles = get_eligible_ranged_tiles(&map, &player_pos, range);
                     if eligible_tiles.contains(&target_index) {
                         return Some(RunState::FreeAiming { index: target_index });
                     }
@@ -172,6 +179,7 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) -> Option<RunSta
                             Attack {
                                 attack_type: AttackType::Melee,
                                 target: *target,
+                                spell: None,
                             },
                         )
                         .expect("Unable to add attack");
@@ -255,6 +263,7 @@ fn try_cycle_targeting(ecs: &mut World) -> Option<RunState> {
     let player_entity = ecs.fetch::<Entity>();
     let equipped = ecs.read_storage::<Equipped>();
     let mut ranged_weapons = ecs.write_storage::<RangedWeapon>();
+    let mut magic_weapons = ecs.write_storage::<MagicWeapon>();
     let monsters = ecs.read_storage::<Monster>();
     let positions = ecs.read_storage::<Position>();
 
@@ -321,6 +330,71 @@ fn try_cycle_targeting(ecs: &mut World) -> Option<RunState> {
         }
         None => {}
     }
+
+    let mut player_magic_weapon: Option<&mut MagicWeapon> = None;
+    for (_entity, equipped, magic_weapon) in (&entities, &equipped, &mut magic_weapons).join() {
+        if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
+            player_magic_weapon = Some(magic_weapon);
+        }
+    }
+
+    match player_magic_weapon {
+        Some(magic) => {
+            let player_pos = positions
+                .get(*player_entity)
+                .expect("Unable to access player position");
+
+            let mut eligible_monsters = Vec::new();
+            for (monster_entity, _monster, monster_pos) in (&entities, &monsters, &positions).join()
+            {
+                let distance = rltk::DistanceAlg::Pythagoras.distance2d(
+                    Point {
+                        x: player_pos.x,
+                        y: player_pos.y,
+                    },
+                    Point {
+                        x: monster_pos.x,
+                        y: monster_pos.y,
+                    },
+                );
+                if distance <= magic.range as f32 {
+                    eligible_monsters
+                        .push((map.xy_idx(monster_pos.x, monster_pos.y), monster_entity));
+                }
+            }
+
+            eligible_monsters.sort_by_key(|(idx, _)| *idx);
+            if !eligible_monsters.is_empty() {
+                match magic.target {
+                    Some(target) => {
+                        let existing_target = eligible_monsters
+                            .iter()
+                            .enumerate()
+                            .filter(|(_index, (_map_index, monster))| *monster == target)
+                            .next();
+                        match existing_target {
+                            Some(et) => {
+                                let next_index = et.0 + 1;
+                                if next_index < eligible_monsters.len() {
+                                    magic.target = Some(eligible_monsters[next_index].1);
+                                } else {
+                                    magic.target = Some(eligible_monsters[0].1);
+                                }
+                            }
+                            None => {
+                                magic.target = Some(eligible_monsters[0].1);
+                            }
+                        }
+                    }
+                    None => {
+                        magic.target = Some(eligible_monsters[0].1);
+                    }
+                }
+            }
+        }
+        None => {}
+    }
+
     return None;
 }
 
@@ -330,8 +404,11 @@ fn try_free_aim(app: &mut App) -> Option<RunState> {
     let player_entity = app.ecs.fetch::<Entity>();
     let equipped = app.ecs.read_storage::<Equipped>();
     let ranged_weapons = app.ecs.read_storage::<RangedWeapon>();
+    let magic_weapons = app.ecs.read_storage::<MagicWeapon>();
+    let ranged_mask = ranged_weapons.mask() | magic_weapons.mask();
 
-    for (equipped, _ranged_weapon) in (&equipped, &ranged_weapons).join() {
+    // Ranged or magic weapon required for switching to free aim
+    for (equipped, _) in (&equipped, &ranged_mask).join() {
         if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
             match app.runstate {
                 RunState::FreeAiming { index: _ } => return Some(RunState::AwaitingInput),
@@ -344,7 +421,7 @@ fn try_free_aim(app: &mut App) -> Option<RunState> {
 
 /// 
 /// Attacks the currently selected ranged target with the currently equipped
-/// ranged weapon, if possible.
+/// ranged or magic weapon, if possible.
 /// 
 /// Handles both freeaim and targeting scenarios.
 /// 
@@ -353,46 +430,100 @@ fn try_ranged_target(app: &mut App) -> Option<RunState> {
     let map = app.ecs.fetch::<Map>();
     let player_entity = app.ecs.fetch::<Entity>();
     let equipped = app.ecs.read_storage::<Equipped>();
+    let spell_knowledge = app.ecs.read_storage::<SpellKnowledge>();
     let mut ranged_weapons = app.ecs.write_storage::<RangedWeapon>();
+    let mut magic_weapons = app.ecs.write_storage::<MagicWeapon>();
     let mut attacks = app.ecs.write_storage::<Attack>();
+    let ranged_mask = ranged_weapons.mask().clone() | magic_weapons.mask().clone();
 
-    for (_ranged_entity, equipped, ranged_weapon) in
-        (&entities, &equipped, &mut ranged_weapons).join()
+    for (entity, equipped, _) in
+        (&entities, &equipped, &ranged_mask).join()
     {
-        if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
-            match app.runstate {                
-                RunState::FreeAiming { index } => {
-                    match map.tile_content[index].iter().next() {
-                        Some(entity) => {
-                            attacks.insert(
-                                *player_entity,
-                                Attack {
-                                    attack_type: AttackType::Ranged,
-                                    target: *entity
-                                }
-                            ).expect("Unable to add attack");
-                            return Some(RunState::PlayerTurn);
-                        },
-                        None => return None,
-                    }
-                }
-                _ => match ranged_weapon.target {
-                    Some(target) => {
-                        attacks
-                            .insert(
-                                *player_entity,
-                                Attack {
-                                    attack_type: AttackType::Ranged,
-                                    target: target,
-                                },
-                            )
-                            .expect("Unable to add attack");
+        if equipped.slot != EquipmentSlot::Weapon || equipped.owner != *player_entity {
+            continue;
+        }
+        let ranged_weapon = ranged_weapons.get_mut(entity);
+        let magic_weapon = magic_weapons.get_mut(entity);
+        let attack_type = if ranged_weapon.is_some() { AttackType::Ranged } else { AttackType::Magic };
+        let target = ranged_weapon.map(|r| r.target)
+            .unwrap_or_else(|| magic_weapon.map(|m| m.target).unwrap_or(None));
+
+        let spell = match attack_type {
+            AttackType::Magic => {
+                spell_knowledge.get(*player_entity)
+                    .expect("uhhh")
+                    .spells
+                    .first()
+                    .map(|s| s.clone())
+            }
+            _ => None
+        };
+
+        match app.runstate {                
+            RunState::FreeAiming { index } => {
+                match map.tile_content[index].iter().next() {
+                    Some(entity) => {
+                        attacks.insert(
+                            *player_entity,
+                            Attack {
+                                attack_type: attack_type,
+                                target: *entity,
+                                spell: spell,
+                            }
+                        ).expect("Unable to add attack");
                         return Some(RunState::PlayerTurn);
                     },
                     None => return None,
                 }
             }
+            _ => match target {
+                Some(target) => {
+                    attacks
+                        .insert(
+                            *player_entity,
+                            Attack {
+                                attack_type: attack_type,
+                                target: target,
+                                spell: spell,
+                            },
+                        )
+                        .expect("Unable to add attack");
+                    return Some(RunState::PlayerTurn);
+                },
+                None => return None,
+            }
         }
+    }
+    return None;
+}
+
+fn try_magic_target(app: &mut App) -> Option<RunState> {
+    let map = app.ecs.fetch::<Map>();
+    let player_entity = app.ecs.fetch::<Entity>();
+    let spell_knowledge = app.ecs.read_storage::<SpellKnowledge>();
+    let mut attacks = app.ecs.write_storage::<Attack>();
+    if let Some(spells) = spell_knowledge.get(*player_entity) {
+        let spell = spells.spells.first().expect("uhh");
+        match app.runstate {
+            RunState::FreeAiming { index } => {
+                match map.tile_content[index].iter().next() {
+                    Some(entity) => {
+                        attacks.insert(
+                            *player_entity,
+                            Attack {
+                                attack_type: AttackType::Magic,
+                                target: *entity,
+                                spell: Some(spell.clone()),
+                            }
+                        ).expect("Unable to add magic attack");
+                        return Some(RunState::PlayerTurn);
+                    },
+                    _ => return None
+                }
+            }
+            _ => return None
+        }
+        // TODO: Make targeting it's own component, not scoped to a weapon
     }
     return None;
 }

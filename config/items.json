@@ -117,7 +117,7 @@
         },
         "spawn": {
             "min_floor": 1,
-            "base_weight": 50
+            "base_weight": 5
         },
         "equippable": {
             "slot": "Weapon"
@@ -173,5 +173,48 @@
             "min_floor": 0,
             "base_weight": 1
         }
+    },
+    {
+        "name": "Tome of Fire Magic",
+        "description": "A dusty book bound in crimson leather. Exudes a slight heat.",
+        "renderable": {
+            "glyph": "▣",
+            "fg": "#DDDDDD",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 1,
+            "base_weight": 5
+        },
+        "spells": [
+            {
+                "name": "Fireball",
+                "mp_cost": 1,
+                "damage": "2d6+2",
+                "damage_type": "Fire",
+                "range": 12
+            }
+        ]
+    },
+    {
+        "name": "Wooden Staff",
+        "description": "A long, knotty staff of oak. Hardy, if a bit unrefined.",
+        "renderable": {
+            "glyph": "|",
+            "fg": "#DDDDDD",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 1,
+            "base_weight": 50
+        },
+        "equippable": {
+            "slot": "Weapon"
+        },
+        "melee_weapon": {
+            "damage": "1d4",
+            "damage_type": "Bludgeoning"
+        },
+        "magic_weapon": {}
     }
 ]

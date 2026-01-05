@@ -8,9 +8,9 @@ use specs::prelude::*;
 
 use crate::{
     component::{
-        Armor, BlocksTile, Equippable, Hidden, Inventory, Item, MagicMapper, MeleeWeapon, Monster, Name, Player, Pool, Position, Potion, RangedWeapon, Renderable, Stats, Triggerable, Viewshed
+        Armor, BlocksTile, DamageType, Equippable, Hidden, Inventory, Item, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Player, Pool, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Viewshed
     },
-    generate::{config::{DropConfig, DropType, ItemConfig, MonsterConfig, ScrollType, parse_dice_expression}, random_table::RandomTable, rect::Rect},
+    generate::{config::{DiceExpression, DropConfig, DropType, ItemConfig, MonsterConfig, ScrollType, parse_dice_expression}, random_table::RandomTable, rect::Rect},
 };
 
 lazy_static! {
@@ -238,6 +238,31 @@ fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Position, item: &ItemConfi
         None => {}
     }
 
+    match &item.magic_weapon {
+        Some(_magic_weapon) => {
+            entity = entity.with(MagicWeapon {
+                range: 12,
+                target: None,
+            });
+        },
+        None => {}
+    }
+
+    match &item.spells {
+        Some(spells) => {
+            entity = entity.with(SpellKnowledge {
+                spells: spells.iter().map(|s| Spell {
+                    name: s.name.clone(),
+                    mp_cost: s.mp_cost,
+                    damage: parse_dice_expression(&s.damage),
+                    damage_type: s.damage_type,
+                    range: s.range
+                }).collect()
+            });
+        },
+        None => {}
+    }
+
     match &item.armor {
         Some(armor) => {
             entity = entity.with(Armor {
@@ -333,6 +358,21 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
             gold: 10,
             items: IndexMap::new(),
             index: 0,
+        })
+        .with(SpellKnowledge {
+            spells: vec![
+                Spell {
+                    name: "Fireball".to_string(),
+                    mp_cost: 1,
+                    damage: DiceExpression {
+                        dice_count: 2,
+                        dice_sides: 6,
+                        modifier: 2,
+                    },
+                    damage_type: DamageType::Fire,
+                    range: 12,
+                }
+            ]
         })
         .build();
 }

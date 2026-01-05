@@ -23,6 +23,7 @@ pub enum DamageType {
     Piercing,
     Slashing,
     Bludgeoning,
+    Fire,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -123,8 +124,28 @@ pub struct RangedWeapon {
 }
 
 #[derive(Component, Debug)]
+pub struct MagicWeapon {
+    pub range: i32,
+    pub target: Option<Entity>,
+}
+
+#[derive(Component, Debug)]
 pub struct Armor {
     pub defense: i32,
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct Spell {
+    pub name: String,
+    pub mp_cost: i32,
+    pub damage: DiceExpression,
+    pub damage_type: DamageType,
+    pub range: i32,
+}
+
+#[derive(Component, Debug)]
+pub struct SpellKnowledge {
+    pub spells: Vec<Spell>,
 }
 
 #[derive(Component, Debug)]
@@ -149,12 +170,14 @@ pub struct WantsToConsumeItem {
 pub enum AttackType {
     Melee,
     Ranged,
+    Magic,
 }
 
 #[derive(Component)]
 pub struct Attack {
     pub attack_type: AttackType,
     pub target: Entity,
+    pub spell: Option<Spell>,
 }
 
 #[derive(Component)]

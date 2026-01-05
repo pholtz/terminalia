@@ -52,7 +52,21 @@ impl<'a> System<'a> for MonsterSystem {
                 );
 
                 /*
-                 * Move the monster towards the player, if possible
+                 * Attack the player, if close enough.
+                 * We do this before moving to ensure that monsters cannot move
+                 * _and_ attack in the same turn, because players can't do that either.
+                 */
+                let distance = rltk::DistanceAlg::Pythagoras.distance2d(Point::new(position.x, position.y), *player_position);
+                if distance < 1.5 {
+                    attack.insert(entity, Attack {
+                        attack_type: AttackType::Melee,
+                        target: *player_entity,
+                        spell: None,
+                    }).expect("Unable to add monster attack");
+                }
+
+                /*
+                 * Lastly, move the monster towards the player, if possible
                  */
                 if path.success && path.steps.len() > 1 {
                     let next_pos_x = path.steps[1] as i32 % map.width;
@@ -65,17 +79,6 @@ impl<'a> System<'a> for MonsterSystem {
                         position.x = next_pos_x;
                         position.y = next_pos_y;
                     }
-                }
-
-                /*
-                 * Attack the player, if close enough
-                 */
-                let distance = rltk::DistanceAlg::Pythagoras.distance2d(Point::new(position.x, position.y), *player_position);
-                if distance < 1.5 {
-                    attack.insert(entity, Attack {
-                        attack_type: AttackType::Melee,
-                        target: *player_entity
-                    }).expect("Unable to add monster attack");
                 }
             }
         }

@@ -90,6 +90,14 @@ impl<'a> System<'a> for MeleeCombatSystem {
                                 }
                             }
                         }
+                        AttackType::Magic => {
+                            if let Some(spell) = &attack.spell {
+                                weapon_damage = rng.roll_dice(
+                                    spell.damage.dice_count,
+                                    spell.damage.dice_sides
+                                ) + spell.damage.modifier;
+                            }
+                        }
                     }
 
                     let mut armor_defense = 0;
@@ -211,6 +219,56 @@ impl<'a> System<'a> for MeleeCombatSystem {
                                         )
                                         .build();
                                     prev_point = Some(*point);
+                                }
+                            }
+                            AttackType::Magic => {
+                                let attacker_pos = positions
+                                    .get(attacker_entity)
+                                    .expect("Unable to access magic attacker position");
+                                let target_pos = positions
+                                    .get(attack.target)
+                                    .expect("Unable to access magic target position");
+                                let line_points = line2d(
+                                    rltk::LineAlg::Bresenham,
+                                    Point {
+                                        x: attacker_pos.x,
+                                        y: attacker_pos.y,
+                                    },
+                                    Point {
+                                        x: target_pos.x,
+                                        y: target_pos.y,
+                                    },
+                                );
+                                for point in line_points.iter() {
+                                    entities
+                                        .build_entity()
+                                        .with(
+                                            Position {
+                                                x: point.x,
+                                                y: point.y,
+                                            },
+                                            &mut positions,
+                                        )
+                                        .with(
+                                            Renderable {
+                                                glyph: '*',
+                                                fg: Color::White,
+                                                bg: Color::default(),
+                                                index: 0,
+                                            },
+                                            &mut renderables,
+                                        )
+                                        .with(
+                                            Lifetime {
+                                                created_at: SystemTime::now()
+                                                    .duration_since(UNIX_EPOCH)
+                                                    .expect("uhhhh")
+                                                    .as_millis(),
+                                                lifetime_ms: 100,
+                                            },
+                                            &mut lifetimes,
+                                        )
+                                        .build();
                                 }
                             }
                         }
