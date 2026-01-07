@@ -360,19 +360,7 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
             index: 0,
         })
         .with(SpellKnowledge {
-            spells: vec![
-                Spell {
-                    name: "Fireball".to_string(),
-                    mp_cost: 1,
-                    damage: DiceExpression {
-                        dice_count: 2,
-                        dice_sides: 6,
-                        modifier: 2,
-                    },
-                    damage_type: DamageType::Fire,
-                    range: 12,
-                }
-            ]
+            spells: vec![],
         })
         .build();
 }

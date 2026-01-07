@@ -3,7 +3,7 @@ use specs::{Entities, Entity, Join, ReadExpect, ReadStorage, System, WriteExpect
 
 use crate::{
     component::{
-        Equippable, Equipped, InBackpack, Inventory, MagicMapper, Name, Position, Potion, Stats, WantsToConsumeItem, WantsToPickupItem
+        Equippable, Equipped, InBackpack, Inventory, MagicMapper, Name, Position, Potion, Spell, SpellKnowledge, Stats, WantsToConsumeItem, WantsToPickupItem
     },
     generate::map::Map, logbook::logbook::Logger,
 };
@@ -23,6 +23,7 @@ impl<'a> System<'a> for InventorySystem {
         WriteStorage<'a, Inventory>,
         WriteExpect<'a, Map>,
         ReadStorage<'a, Potion>,
+        WriteStorage<'a, SpellKnowledge>,
         ReadStorage<'a, MagicMapper>,
         ReadStorage<'a, Equippable>,
         WriteStorage<'a, Equipped>,
@@ -41,6 +42,7 @@ impl<'a> System<'a> for InventorySystem {
             mut inventories,
             mut map,
             potions,
+            mut spell_knowledge,
             magic_mappers,
             equippables,
             mut equipment,
@@ -109,6 +111,32 @@ impl<'a> System<'a> for InventorySystem {
                         .append_with_color(Color::Green, format!("{} hp.", potion.heal_amount))
                         .log();
                 }
+            }
+
+            // Someone wants to read a spellbook...
+            let mut new_spells: Vec<Spell> = Vec::new();
+            if let Some(spellbook) = spell_knowledge.get(consume.item) {
+                has_effect = true;
+                should_consume = true;
+                if entity == *player_entity {
+                    new_spells.extend_from_slice(&spellbook.spells);
+                    let spell_names: Vec<String> = spellbook.spells.iter().map(|s| s.name.clone()).collect();
+                    Logger::new()
+                        .append("You read the ")
+                        .append_with_color(Color::Blue, format!("{}", item_name.name))
+                        .append(", and learn the following spell(s) -> ")
+                        .append_with_color(Color::Green, format!("{}", spell_names.join(", ")))
+                        .log();
+                }
+            }
+
+            // If the player read a spellbook above, teach any new spells to the player
+            if let Some(player_spells) = spell_knowledge.get_mut(*player_entity) {
+                let net_new_spells: Vec<Spell> = new_spells.iter()
+                    .filter(|ns| player_spells.spells.iter().find(|os| ns.name == os.name).is_none())
+                    .cloned()
+                    .collect();
+                player_spells.spells.extend_from_slice(&net_new_spells);
             }
 
             // Someone wants to equip an item...

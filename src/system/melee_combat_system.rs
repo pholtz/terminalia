@@ -69,24 +69,27 @@ impl<'a> System<'a> for MeleeCombatSystem {
                 // target's health
                 if target_stats.hp.current > 0 {
                     let mut weapon_damage: i32 = 1;
+                    let mut weapon_name: String = "fists".to_string();
                     match attack.attack_type {
                         AttackType::Melee => {
-                            for (equipped, melee_weapon) in (&equipment, &melee_weapons).join() {
+                            for (equipped, melee_weapon, name) in (&equipment, &melee_weapons, &names).join() {
                                 if equipped.owner == attacker_entity {
                                     weapon_damage = rng.roll_dice(
                                         melee_weapon.damage.dice_count,
                                         melee_weapon.damage.dice_sides,
                                     ) + melee_weapon.damage.modifier;
+                                    weapon_name = name.name.clone();
                                 }
                             }
                         }
                         AttackType::Ranged => {
-                            for (equipped, ranged_weapon) in (&equipment, &ranged_weapons).join() {
+                            for (equipped, ranged_weapon, name) in (&equipment, &ranged_weapons, &names).join() {
                                 if equipped.owner == attacker_entity {
                                     weapon_damage = rng.roll_dice(
                                         ranged_weapon.damage.dice_count,
                                         ranged_weapon.damage.dice_sides,
                                     ) + ranged_weapon.damage.modifier;
+                                    weapon_name = name.name.clone();
                                 }
                             }
                         }
@@ -96,6 +99,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
                                     spell.damage.dice_count,
                                     spell.damage.dice_sides
                                 ) + spell.damage.modifier;
+                                weapon_name = spell.name.clone();
                             }
                         }
                     }
@@ -115,16 +119,16 @@ impl<'a> System<'a> for MeleeCombatSystem {
                     if damage_inflicted == 0 {
                         Logger::new()
                             .append(format!(
-                                "{} is too weak to hurt {}",
-                                &name.name, &target_name.name
+                                "{} tries to strike {} with {}, but was too weak",
+                                &name.name, &target_name.name, weapon_name
                             ))
                             .log();
                         continue;
                     }
                     Logger::new()
                         .append(format!(
-                            "{} hits {}, inflicting {} damage",
-                            &name.name, &target_name.name, damage_inflicted
+                            "{} hits {} with {}, inflicting {} damage",
+                            &name.name, &target_name.name, weapon_name, damage_inflicted
                         ))
                         .log();
                     Damage::new_damage(

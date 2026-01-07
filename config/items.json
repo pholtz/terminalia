@@ -184,7 +184,7 @@
         },
         "spawn": {
             "min_floor": 1,
-            "base_weight": 5
+            "base_weight": 10
         },
         "spells": [
             {
