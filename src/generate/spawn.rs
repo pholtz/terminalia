@@ -8,9 +8,9 @@ use specs::prelude::*;
 
 use crate::{
     component::{
-        Armor, BlocksTile, DamageType, Equippable, Hidden, Inventory, Item, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Player, Pool, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Viewshed
+        Armor, BlocksTile, Equippable, Hidden, Inventory, Item, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Player, Pool, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Viewshed
     },
-    generate::{config::{DiceExpression, DropConfig, DropType, ItemConfig, MonsterConfig, ScrollType, parse_dice_expression}, random_table::RandomTable, rect::Rect},
+    generate::{config::{DropConfig, DropType, ItemConfig, MonsterConfig, ScrollType, parse_dice_expression}, random_table::RandomTable, rect::Rect},
 };
 
 lazy_static! {
@@ -171,7 +171,7 @@ pub fn spawn_weighted_drop(ecs: &mut World, drop_type: DropType, pos: Position) 
     }
 }
 
-fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Position, item: &ItemConfig) -> EntityBuilder<'a> {
+pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Position, item: &ItemConfig) -> EntityBuilder<'a> {
     entity = entity.with(pos)
         .with(Name {
             name: item.name.clone(),

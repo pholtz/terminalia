@@ -6,7 +6,7 @@ use specs::prelude::*;
 use crossterm::{event::{KeyCode, KeyEvent}};
 
 use crate::{
-    App, RunState, Screen, component::Stats, logbook::logbook::{self, LOG_INDEX, Logger}
+    App, RunState, Screen, component::{Position, Stats, WantsToPickupItem}, generate::spawn::{ITEMS, spawn_item}, logbook::logbook::{self, LOG_INDEX, Logger}
 };
 
 pub fn handle_main_log_key_event(app: &mut App, key_event: KeyEvent) -> Option<RunState> {
@@ -94,7 +94,7 @@ pub fn handle_main_log_key_event(app: &mut App, key_event: KeyEvent) -> Option<R
  * or just for testing purposes.
  */
 pub fn process_command(input: String, ecs: &mut World) {
-    if input.starts_with("/health") {
+    if input == "/health" {
         let player_entity = ecs.read_resource::<Entity>();
         let mut stats = ecs.write_storage::<Stats>();
         if let Some(stat) = stats.get_mut(*player_entity) {
@@ -103,8 +103,24 @@ pub fn process_command(input: String, ecs: &mut World) {
         }
     }
 
-    // TODO: Spawn named item
-    if input.starts_with("/item") {
-
+    if input == "/items" {
+        let player_entity = {
+            *ecs.fetch::<Entity>()
+        };
+        let player_pos = {
+            let positions = ecs.read_storage::<Position>();
+            *positions.get(player_entity).expect("Unable to access player position")
+        };
+        
+        for item in ITEMS.lock().unwrap().iter() {
+            let entity = spawn_item(ecs.create_entity(), player_pos, item).build();
+            {
+                let mut pickups = ecs.write_storage::<WantsToPickupItem>();
+                pickups.insert(
+                    player_entity,
+                    WantsToPickupItem { collected_by: player_entity, item: entity }
+                ).expect("Unable to spawn items via command");
+            }
+        }
     }
 }
