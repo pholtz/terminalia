@@ -167,6 +167,7 @@ pub struct WantsToConsumeItem {
     pub item: Entity,
 }
 
+#[derive(PartialEq)]
 pub enum AttackType {
     Melee,
     Ranged,

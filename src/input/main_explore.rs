@@ -419,7 +419,6 @@ fn try_free_aim(app: &mut App) -> Option<RunState> {
     return None;
 }
 
-/// 
 /// Attacks the currently selected ranged target with the currently equipped
 /// ranged or magic weapon, if possible.
 /// 

@@ -69,7 +69,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
                 // target's health
                 if target_stats.hp.current > 0 {
                     let mut weapon_damage: i32 = 1;
-                    let mut weapon_name: String = "fists".to_string();
+                    let mut weapon_name: String = "fisticuffs".to_string();
                     match attack.attack_type {
                         AttackType::Melee => {
                             for (equipped, melee_weapon, name) in (&equipment, &melee_weapons, &names).join() {
@@ -100,6 +100,11 @@ impl<'a> System<'a> for MeleeCombatSystem {
                                     spell.damage.dice_sides
                                 ) + spell.damage.modifier;
                                 weapon_name = spell.name.clone();
+                            } else {
+                                Logger::new()
+                                    .append("You tried to cast a spell, but you don't know any spells, silly!")
+                                    .log();
+                                continue;
                             }
                         }
                     }
