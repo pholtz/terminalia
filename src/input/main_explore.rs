@@ -9,7 +9,7 @@ use crate::{
         Attack, AttackType, EquipmentSlot, Equipped, Item, MagicWeapon, Monster, Player, Pool, Position, RangedWeapon, SpellKnowledge, Stats, WantsToPickupItem
     },
     generate::map::{Map, TileType},
-    logbook::logbook::Logger, system::ranged_combat_system::get_eligible_ranged_tiles,
+    logbook::logbook::Logger, system::ranged_combat_system::{get_eligible_ranged_tiles, has_line_of_sight},
 };
 
 pub fn handle_main_explore_key_event(
@@ -281,19 +281,11 @@ fn try_cycle_targeting(ecs: &mut World) -> Option<RunState> {
                 .expect("Unable to access player position");
 
             let mut eligible_monsters = Vec::new();
-            for (monster_entity, _monster, monster_pos) in (&entities, &monsters, &positions).join()
-            {
-                let distance = rltk::DistanceAlg::Pythagoras.distance2d(
-                    Point {
-                        x: player_pos.x,
-                        y: player_pos.y,
-                    },
-                    Point {
-                        x: monster_pos.x,
-                        y: monster_pos.y,
-                    },
-                );
-                if distance <= ranged.range as f32 {
+            for (monster_entity, _monster, monster_pos) in (&entities, &monsters, &positions).join() {
+                let player = Point { x: player_pos.x, y: player_pos.y };
+                let monster = Point { x: monster_pos.x, y: monster_pos.y };
+                let distance = rltk::DistanceAlg::Pythagoras.distance2d(player, monster);
+                if distance <= ranged.range as f32 && has_line_of_sight(&map, player, monster) {
                     eligible_monsters
                         .push((map.xy_idx(monster_pos.x, monster_pos.y), monster_entity));
                 }
@@ -347,17 +339,10 @@ fn try_cycle_targeting(ecs: &mut World) -> Option<RunState> {
             let mut eligible_monsters = Vec::new();
             for (monster_entity, _monster, monster_pos) in (&entities, &monsters, &positions).join()
             {
-                let distance = rltk::DistanceAlg::Pythagoras.distance2d(
-                    Point {
-                        x: player_pos.x,
-                        y: player_pos.y,
-                    },
-                    Point {
-                        x: monster_pos.x,
-                        y: monster_pos.y,
-                    },
-                );
-                if distance <= magic.range as f32 {
+                let player = Point { x: player_pos.x, y: player_pos.y };
+                let monster = Point { x: monster_pos.x, y: monster_pos.y };
+                let distance = rltk::DistanceAlg::Pythagoras.distance2d(player, monster);
+                if distance <= magic.range as f32 && has_line_of_sight(&map, player, monster) {
                     eligible_monsters
                         .push((map.xy_idx(monster_pos.x, monster_pos.y), monster_entity));
                 }

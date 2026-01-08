@@ -198,7 +198,7 @@ fn format_inventory_item<'a>(
         lines.push(Line::from(vec![
             Span::styled(" [weapon] Type: Ranged | Damage: ", Style::default()),
             Span::styled(format!("{}", ranged.damage.to_expression()), Style::default().fg(Color::Yellow)),
-            Span::styled(" | ", Style::default()),
+            Span::styled(" | Range: ", Style::default()),
             Span::styled(format!("{}", ranged.range), Style::default().fg(Color::Yellow)),
         ]));
         lines.push("".into());

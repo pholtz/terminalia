@@ -117,7 +117,7 @@
         },
         "spawn": {
             "min_floor": 1,
-            "base_weight": 5
+            "base_weight": 50
         },
         "equippable": {
             "slot": "Weapon"
@@ -206,7 +206,7 @@
         },
         "spawn": {
             "min_floor": 1,
-            "base_weight": 50
+            "base_weight": 5
         },
         "equippable": {
             "slot": "Weapon"

@@ -116,9 +116,9 @@ impl<'a> System<'a> for MeleeCombatSystem {
                         }
                     }
 
-                    let raw_damage = i32::max(0, ((stat.strength - 10) / 2) + weapon_damage);
+                    let raw_damage = i32::max(0, stat_to_modifier(stat.strength) + weapon_damage);
                     let raw_defense =
-                        i32::max(0, ((target_stats.dexterity - 10) / 2) + armor_defense);
+                        i32::max(0, stat_to_modifier(stat.dexterity) + armor_defense);
                     let damage_inflicted = i32::max(0, raw_damage - raw_defense);
 
                     if damage_inflicted == 0 {
@@ -287,6 +287,10 @@ impl<'a> System<'a> for MeleeCombatSystem {
         }
         attacks.clear();
     }
+}
+
+pub fn stat_to_modifier(stat: i32) -> i32 {
+    return (stat - 10) / 2;
 }
 
 fn generate_directional_ranged_attack_glyph(previous: Point, current: Point) -> char {
