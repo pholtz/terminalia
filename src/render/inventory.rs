@@ -1,4 +1,3 @@
-use color_eyre::owo_colors::OwoColorize;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout},
@@ -8,7 +7,7 @@ use ratatui::{
 };
 use specs::prelude::*;
 
-use crate::{RunState, component::{Armor, Equipped, Inventory, Item, MeleeWeapon, Name, RangedWeapon, Stats}, render::game::format_pools};
+use crate::{RunState, component::{Armor, Equipped, Inventory, Item, MagicWeapon, MeleeWeapon, Name, RangedWeapon, Stats}, render::game::format_pools};
 
 /**
  * This render function fires when the player is ingame and viewing their inventory.
@@ -25,6 +24,7 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
     let stats = ecs.read_storage::<Stats>();
     let melee_weapons = ecs.read_storage::<MeleeWeapon>();
     let ranged_weapons = ecs.read_storage::<RangedWeapon>();
+    let magic_weapons = ecs.read_storage::<MagicWeapon>();
     let armors = ecs.read_storage::<Armor>();
 
     let inventory = inventories
@@ -51,6 +51,7 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
             &equipment,
             &melee_weapons,
             &ranged_weapons,
+            &magic_weapons,
             &armors,
         )).collect();
 
@@ -161,6 +162,7 @@ fn format_inventory_item<'a>(
     equipped: &ReadStorage<Equipped>,
     melee_weapons: &ReadStorage<MeleeWeapon>,
     ranged_weapons: &ReadStorage<RangedWeapon>,
+    magic_weapons: &ReadStorage<MagicWeapon>,
     armors: &ReadStorage<Armor>,
 ) -> ListItem<'a> {
     let top_line = Line::from(vec![
@@ -185,16 +187,28 @@ fn format_inventory_item<'a>(
     ];
 
     if let Some(melee) = melee_weapons.get(item_entity) {
-        lines.push(format!(" [weapon] Type: Melee | Damage: {}", melee.damage.to_expression()).into());
+        lines.push(Line::from(vec![
+            Span::styled(" [weapon] Type: Melee | Damage: ", Style::default()),
+            Span::styled(format!("{}", melee.damage.to_expression()), Style::default().fg(Color::Yellow)),
+        ]));
         lines.push("".into());
     }
 
     if let Some(ranged) = ranged_weapons.get(item_entity) {
-        lines.push(format!(
-            " [weapon] Type: Ranged | Damage: {} | Range: {}",
-            ranged.damage.to_expression(),
-            ranged.range,
-        ).into());
+        lines.push(Line::from(vec![
+            Span::styled(" [weapon] Type: Ranged | Damage: ", Style::default()),
+            Span::styled(format!("{}", ranged.damage.to_expression()), Style::default().fg(Color::Yellow)),
+            Span::styled(" | ", Style::default()),
+            Span::styled(format!("{}", ranged.range), Style::default().fg(Color::Yellow)),
+        ]));
+        lines.push("".into());
+    }
+
+    if let Some(magic) = magic_weapons.get(item_entity) {
+        lines.push(Line::from(vec![
+            Span::styled(" [magic] Type: Magic | Range: ", Style::default()),
+            Span::styled(format!("{}", magic.range), Style::default().fg(Color::Blue)),
+        ]));
         lines.push("".into());
     }
 
