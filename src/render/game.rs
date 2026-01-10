@@ -14,7 +14,7 @@ use crate::{
         EquipmentSlot, Equipped, Hidden, Inventory, Item, MagicWeapon, Name, Pool, Position, RangedWeapon, Renderable, Stats
     },
     generate::map::{Map, TileType},
-    logbook::logbook::format_text,
+    logbook::logbook::{format_latest_text},
     system::ranged_combat_system::get_eligible_ranged_tiles,
 };
 
@@ -294,7 +294,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                 Text::from("???")
             }
         }
-        _ => format_text(4),
+        _ => format_latest_text(4),
     };
 
     let horizontal_layout = Layout::default()

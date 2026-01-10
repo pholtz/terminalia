@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style, Stylize, palette::tailwind::SLATE},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, List, ListItem, ListState, Padding, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 use specs::prelude::*;
 
@@ -56,10 +56,11 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
         )).collect();
 
     let mut state = ListState::default();
+    let inventory_index = inventory.index;
     if inventory_list.is_empty() {
         inventory_list.push(ListItem::from("Your inventory is empty!".to_string()));
     } else {
-        state.select(Some(inventory.index));
+        state.select(Some(inventory_index));
     }
 
     let pools = format_pools(&player_entity, stats.clone(), inventories).expect("Unable to format player pools!");
@@ -71,14 +72,21 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
         _ => "Attributes"
     };
 
+    let mut scrollbar_state = ScrollbarState::default()
+        .content_length(inventory_list.len())
+        .position(inventory_index);
+
     let root_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(frame.area());
 
     let inventory_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Fill(1)])
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Min(1),
+            Constraint::Length(1),
+        ])
         .split(root_layout[0]);
 
     let character_layout = Layout::default()
@@ -99,6 +107,13 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
             .highlight_spacing(ratatui::widgets::HighlightSpacing::Never),
         inventory_layout[0],
         &mut state,
+    );
+    frame.render_stateful_widget(
+        Scrollbar::new(ScrollbarOrientation::VerticalRight)
+            .begin_symbol(Some("↑"))
+            .end_symbol(Some("↓")),
+        inventory_layout[1],
+        &mut scrollbar_state,
     );
 
     frame.render_widget(

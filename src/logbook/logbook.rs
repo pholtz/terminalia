@@ -55,15 +55,29 @@ lazy_static! {
 }
 pub static LOG_INDEX: AtomicU16 = AtomicU16::new(0);
 
-pub fn append(fragment: LogFragment) {
-    LOGBOOK.lock().unwrap().push(vec![fragment]);
-}
-
 pub fn append_many(fragments: Vec<LogFragment>) {
     LOGBOOK.lock().unwrap().push(fragments);
 }
 
-pub fn format_text(limit: usize) -> Text<'static> {
+/// Iterate over all elements in the log...
+/// then format them into `Line` instances inside of a `Text` instance, to be
+/// rendered by ratatui.
+pub fn format_all_text() -> Text<'static> {
+    let mut lines: Vec<Line> = Vec::new();
+    for line in LOGBOOK.lock().unwrap().iter() {
+        let mut spans: Vec<Span> = Vec::new();
+        for chunk in line.iter() {
+            spans.push(Span::styled(chunk.text.clone(), Style::new().fg(chunk.color)));
+        }
+        lines.push(Line::from(spans));
+    }
+    return Text::from(lines);
+}
+
+/// Strip the given `limit` number of entries off of the end of the logbook,
+/// then format them into `Line` instances inside of a `Text` instance, to be
+/// rendered by ratatui.
+pub fn format_latest_text(limit: usize) -> Text<'static> {
     let mut lines: Vec<Line> = Vec::new();
     for line in LOGBOOK.lock().unwrap().iter().rev().take(limit).rev() {
         let mut spans: Vec<Span> = Vec::new();

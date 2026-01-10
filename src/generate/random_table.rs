@@ -22,14 +22,6 @@ impl RandomTable {
         RandomTable{ entries: Vec::new(), total_weight: 0 }
     }
 
-    pub fn add<S:ToString>(mut self, name : S, weight: i32) -> RandomTable {
-        if weight > 0 {
-            self.total_weight += weight;
-            self.entries.push(RandomEntry::new(name.to_string(), weight));
-        }
-        self
-    }
-
     pub fn push<S:ToString>(&mut self, name : S, weight: i32) {
         if weight > 0 {
             self.total_weight += weight;

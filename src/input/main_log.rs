@@ -113,6 +113,9 @@ pub fn process_command(input: String, ecs: &mut World) {
         };
         
         for item in ITEMS.lock().unwrap().iter() {
+            if item.triggerable.is_some() {
+                continue;
+            }
             let entity = spawn_item(ecs.create_entity(), player_pos, item).build();
             {
                 let mut pickups = ecs.write_storage::<WantsToPickupItem>();
