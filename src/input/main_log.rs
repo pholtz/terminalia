@@ -112,18 +112,19 @@ pub fn process_command(input: String, ecs: &mut World) {
             *positions.get(player_entity).expect("Unable to access player position")
         };
         
+        let mut item_entities = Vec::new();
         for item in ITEMS.lock().unwrap().iter() {
             if item.triggerable.is_some() {
                 continue;
             }
             let entity = spawn_item(ecs.create_entity(), player_pos, item).build();
-            {
-                let mut pickups = ecs.write_storage::<WantsToPickupItem>();
-                pickups.insert(
-                    player_entity,
-                    WantsToPickupItem { collected_by: player_entity, item: entity }
-                ).expect("Unable to spawn items via command");
-            }
+            item_entities.push(entity);
         }
+
+        let mut pickups = ecs.write_storage::<WantsToPickupItem>();
+        pickups.insert(
+            player_entity,
+            WantsToPickupItem { collected_by: player_entity, items: item_entities }
+        ).expect("Unable to spawn items via command");
     }
 }

@@ -343,7 +343,10 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                 Span::styled(pools.hp.3, Style::new().bg(Color::Rgb(60, 0, 0))),
             ]),
             Line::from(vec![
-                Span::styled(format!("{:12}", pools.mp.1), Style::new().fg(Color::Blue)),
+                Span::styled(
+                    format!("{:12}", pools.mp.1),
+                    Style::new().fg(Color::Blue)
+                ),
                 Span::styled(pools.mp.2, Style::new().bg(Color::Blue)),
                 Span::styled(pools.mp.3, Style::new().bg(Color::Rgb(0, 0, 60))),
             ]),
@@ -389,9 +392,11 @@ pub fn format_pools(
             let player_hp_remaining = " ".repeat(hp_bar_remaining);
             let player_hp_total = " ".repeat(25 - hp_bar_remaining);
 
-            let player_mp = "MP: 10 / 10 ".to_string();
-            let player_mp_remaining = " ".repeat(20);
-            let player_mp_total = " ".repeat(5);
+            let player_mp = format!("MP: {} / {} ", stats.mp.current, stats.mp.max);
+            let mp_bar_remaining =
+                ((stats.mp.current as f64 / stats.mp.max as f64) * (25 as f64)).round() as usize;
+            let player_mp_remaining = " ".repeat(mp_bar_remaining);
+            let player_mp_total = " ".repeat(25 - mp_bar_remaining);
 
             let player_exp = format!("Level: {}", stats.level);
             let player_exp_fill = " ".repeat(

@@ -20,7 +20,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
         WriteExpect<'a, RandomNumberGenerator>,
         WriteStorage<'a, Attack>,
         ReadStorage<'a, Name>,
-        ReadStorage<'a, Stats>,
+        WriteStorage<'a, Stats>,
         WriteStorage<'a, Damage>,
         ReadStorage<'a, Equipped>,
         ReadStorage<'a, MeleeWeapon>,
@@ -44,7 +44,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
             mut rng,
             mut attacks,
             names,
-            stats,
+            mut stats,
             mut damages,
             equipment,
             melee_weapons,
@@ -54,6 +54,8 @@ impl<'a> System<'a> for MeleeCombatSystem {
             mut renderables,
             mut lifetimes,
         ) = data;
+
+        let mut mana_burndown: Vec<(Entity, i32)> = Vec::new();
 
         for (attacker_entity, attack, name, stat) in
             (&entities, &mut attacks, &names, &stats).join()
@@ -95,11 +97,19 @@ impl<'a> System<'a> for MeleeCombatSystem {
                         }
                         AttackType::Magic => {
                             if let Some(spell) = &attack.spell {
-                                weapon_damage = rng.roll_dice(
-                                    spell.damage.dice_count,
-                                    spell.damage.dice_sides
-                                ) + spell.damage.modifier;
-                                weapon_name = spell.name.clone();
+                                if stat.mp.current >= spell.mp_cost {
+                                    weapon_damage = rng.roll_dice(
+                                        spell.damage.dice_count,
+                                        spell.damage.dice_sides
+                                    ) + spell.damage.modifier;
+                                    weapon_name = spell.name.clone();
+                                    mana_burndown.push((attacker_entity, spell.mp_cost));
+                                } else {
+                                    Logger::new()
+                                        .append("You tried to case a spell, but you don't have enough mana!")
+                                        .log();
+                                    continue;
+                                }
                             } else {
                                 Logger::new()
                                     .append("You tried to cast a spell, but you don't know any spells, silly!")
@@ -286,6 +296,14 @@ impl<'a> System<'a> for MeleeCombatSystem {
             }
         }
         attacks.clear();
+
+        /*
+         * Commit the mana burndown to ecs.
+         */
+        for (attacker_entity, mana_cost) in mana_burndown.iter() {
+            let stat = stats.get_mut(*attacker_entity).expect("Unable to access magic attacker stats");
+            stat.mp.current -= mana_cost;
+        }
     }
 }
 

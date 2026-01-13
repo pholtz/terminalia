@@ -224,7 +224,7 @@ fn try_get_item(ecs: &mut World) -> Option<RunState> {
                     *player_entity,
                     WantsToPickupItem {
                         collected_by: *player_entity,
-                        item: item,
+                        items: vec![item],
                     },
                 )
                 .expect("Unable to insert item pickup into ecs");

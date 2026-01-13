@@ -189,7 +189,7 @@
         "spells": [
             {
                 "name": "Fireball",
-                "mp_cost": 1,
+                "mp_cost": 4,
                 "damage": "2d6+2",
                 "damage_type": "Fire",
                 "range": 12

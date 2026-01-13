@@ -52,34 +52,36 @@ impl<'a> System<'a> for InventorySystem {
          * Item collection subsystem
          */
         for (pickup, _name) in (&wants_pickup, &names).join() {
-            positions.remove(pickup.item);
-            backpack
-                .insert(
-                    pickup.item,
-                    InBackpack {
-                        owner: pickup.collected_by,
-                    },
-                )
-                .expect("Unable to add item to backpack");
+            for item in &pickup.items {
+                positions.remove(*item);
+                backpack
+                    .insert(
+                        *item,
+                        InBackpack {
+                            owner: pickup.collected_by,
+                        },
+                    )
+                    .expect("Unable to add item to backpack");
 
-            let item_name = names
-                .get(pickup.item)
-                .expect("Unable to access name for picked up item");
+                let item_name = names
+                    .get(*item)
+                    .expect("Unable to access name for picked up item");
 
-            if let Some(inventory) = inventories.get_mut(pickup.collected_by) {
-                let item_stack = inventory
-                    .items
-                    .entry(item_name.name.clone())
-                    .or_insert(vec![]);
-                item_stack.push(pickup.item);
-            }
+                if let Some(inventory) = inventories.get_mut(pickup.collected_by) {
+                    let item_stack = inventory
+                        .items
+                        .entry(item_name.name.clone())
+                        .or_insert(vec![]);
+                    item_stack.push(*item);
+                }
 
-            if pickup.collected_by == *player_entity {
-                Logger::new()
-                    .append("You pick up the ")
-                    .with_color(Color::LightBlue)
-                    .append(format!("{}.", item_name.name))
-                    .log();
+                if pickup.collected_by == *player_entity {
+                    Logger::new()
+                        .append("You pick up the ")
+                        .with_color(Color::LightBlue)
+                        .append(format!("{}.", item_name.name))
+                        .log();
+                }
             }
         }
         wants_pickup.clear();
