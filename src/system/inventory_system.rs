@@ -3,9 +3,11 @@ use specs::{Entities, Entity, Join, ReadExpect, ReadStorage, System, WriteExpect
 
 use crate::{
     component::{
-        Equippable, Equipped, InBackpack, Inventory, MagicMapper, Name, Position, Potion, Spell, SpellKnowledge, Stats, WantsToConsumeItem, WantsToPickupItem
+        Equippable, Equipped, InBackpack, Inventory, MagicMapper, Name, Position, Potion,
+        PotionType, Spell, SpellKnowledge, Stats, WantsToConsumeItem, WantsToPickupItem,
     },
-    generate::map::Map, logbook::logbook::Logger,
+    generate::map::Map,
+    logbook::logbook::Logger,
 };
 
 pub struct InventorySystem {}
@@ -104,13 +106,28 @@ impl<'a> System<'a> for InventorySystem {
             if let Some(potion) = potions.get(consume.item) {
                 has_effect = true;
                 should_consume = true;
-                stat.hp.current = i32::min(stat.hp.max, stat.hp.current + potion.heal_amount);
+                let fstat: String;
+                match potion.potion_type {
+                    PotionType::Health => {
+                        stat.hp.current =
+                            i32::min(stat.hp.max, stat.hp.current + potion.restore_amount);
+                        fstat = "hp".to_string();
+                    }
+                    PotionType::Mana => {
+                        stat.mp.current =
+                            i32::min(stat.mp.max, stat.mp.current + potion.restore_amount);
+                        fstat = "mp".to_string();
+                    }
+                }
                 if entity == *player_entity {
                     Logger::new()
                         .append("You consume the ")
                         .append_with_color(Color::Blue, format!("{}", item_name.name))
-                        .append(", healing ")
-                        .append_with_color(Color::Green, format!("{} hp.", potion.heal_amount))
+                        .append(", restoring ")
+                        .append_with_color(
+                            Color::Green,
+                            format!("{} {}.", potion.restore_amount, fstat),
+                        )
                         .log();
                 }
             }
@@ -122,7 +139,8 @@ impl<'a> System<'a> for InventorySystem {
                 should_consume = true;
                 if entity == *player_entity {
                     new_spells.extend_from_slice(&spellbook.spells);
-                    let spell_names: Vec<String> = spellbook.spells.iter().map(|s| s.name.clone()).collect();
+                    let spell_names: Vec<String> =
+                        spellbook.spells.iter().map(|s| s.name.clone()).collect();
                     Logger::new()
                         .append("You read the ")
                         .append_with_color(Color::Blue, format!("{}", item_name.name))
@@ -134,8 +152,15 @@ impl<'a> System<'a> for InventorySystem {
 
             // If the player read a spellbook above, teach any new spells to the player
             if let Some(player_spells) = spell_knowledge.get_mut(*player_entity) {
-                let net_new_spells: Vec<Spell> = new_spells.iter()
-                    .filter(|ns| player_spells.spells.iter().find(|os| ns.name == os.name).is_none())
+                let net_new_spells: Vec<Spell> = new_spells
+                    .iter()
+                    .filter(|ns| {
+                        player_spells
+                            .spells
+                            .iter()
+                            .find(|os| ns.name == os.name)
+                            .is_none()
+                    })
                     .cloned()
                     .collect();
                 player_spells.spells.extend_from_slice(&net_new_spells);
@@ -149,13 +174,17 @@ impl<'a> System<'a> for InventorySystem {
                 for (item_entity, equipment, name) in (&entities, &equipment, &names).join() {
                     if equipment.owner == entity && equipment.slot == equippable.slot {
                         unequip.push(item_entity);
-                        Logger::new().append(format!(
-                            "You unequp the {} from the {:?} slot.",
-                            name.name, equipment.slot,
-                        )).log();
+                        Logger::new()
+                            .append(format!(
+                                "You unequp the {} from the {:?} slot.",
+                                name.name, equipment.slot,
+                            ))
+                            .log();
                     }
                 }
-                unequip.iter().for_each(|item| { equipment.remove(*item).expect("Unable to unequip item"); });
+                unequip.iter().for_each(|item| {
+                    equipment.remove(*item).expect("Unable to unequip item");
+                });
 
                 /*
                  * If the same item is being used and is already equipped...
@@ -164,13 +193,22 @@ impl<'a> System<'a> for InventorySystem {
                 let unequip_only = unequip.contains(&consume.item);
 
                 if !unequip_only {
-                    equipment.insert(consume.item, Equipped { slot: equippable.slot, owner: entity })
+                    equipment
+                        .insert(
+                            consume.item,
+                            Equipped {
+                                slot: equippable.slot,
+                                owner: entity,
+                            },
+                        )
                         .expect("Unable to equip desired item");
                     if entity == *player_entity {
-                        Logger::new().append(format!(
-                            "You equip the {} to the {:?} slot.",
-                            item_name.name, equippable.slot
-                        )).log();
+                        Logger::new()
+                            .append(format!(
+                                "You equip the {} to the {:?} slot.",
+                                item_name.name, equippable.slot
+                            ))
+                            .log();
                     }
                 }
             }
@@ -182,14 +220,20 @@ impl<'a> System<'a> for InventorySystem {
                 for tile in map.revealed_tiles.iter_mut() {
                     *tile = true;
                 }
-                Logger::new().append("The darkness lifts, and you become more aware of everything around you.").log();
+                Logger::new()
+                    .append(
+                        "The darkness lifts, and you become more aware of everything around you.",
+                    )
+                    .log();
             }
 
             if !has_effect {
-                Logger::new().append(format!(
-                    "You consume the {}, but nothing happens.",
-                    item_name.name
-                )).log();
+                Logger::new()
+                    .append(format!(
+                        "You consume the {}, but nothing happens.",
+                        item_name.name
+                    ))
+                    .log();
             }
 
             /*

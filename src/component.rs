@@ -7,6 +7,9 @@ use specs_derive::Component;
 
 use crate::generate::config::{DiceExpression, DropType};
 
+/**
+ * All supporting enums defined below.
+ */
 #[derive(PartialEq, Copy, Clone, Debug, Deserialize)]
 pub enum EquipmentSlot {
     Weapon,
@@ -26,6 +29,22 @@ pub enum DamageType {
     Fire,
 }
 
+#[derive(PartialEq)]
+pub enum AttackType {
+    Melee,
+    Ranged,
+    Magic,
+}
+
+#[derive(Debug, Deserialize, Copy, Clone)]
+pub enum PotionType {
+    Health,
+    Mana
+}
+
+/**
+ * All specs components defined below.
+ */
 #[derive(Component, Clone, Copy)]
 pub struct Position {
     pub x: i32,
@@ -97,7 +116,8 @@ pub struct Item {
 
 #[derive(Component, Debug)]
 pub struct Potion {
-    pub heal_amount: i32,
+    pub potion_type: PotionType,
+    pub restore_amount: i32,
 }
 
 #[derive(Component, Debug)]
@@ -165,13 +185,6 @@ pub struct WantsToPickupItem {
 #[derive(Component, Debug)]
 pub struct WantsToConsumeItem {
     pub item: Entity,
-}
-
-#[derive(PartialEq)]
-pub enum AttackType {
-    Melee,
-    Ranged,
-    Magic,
 }
 
 #[derive(Component)]

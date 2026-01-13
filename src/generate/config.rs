@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
 
-use crate::component::{DamageType, EquipmentSlot, Pool};
+use crate::component::{DamageType, EquipmentSlot, Pool, PotionType};
 
 #[derive(Deserialize)]
 pub struct ItemConfig {
@@ -68,7 +68,8 @@ pub struct SpawnConfig {
 
 #[derive(Deserialize)]
 pub struct PotionConfig {
-    pub heal_amount: i32,
+    pub potion_type: PotionType,
+    pub restore_amount: i32,
 }
 
 #[derive(Deserialize)]

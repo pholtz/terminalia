@@ -203,7 +203,8 @@ pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Position, item: &ItemC
     match &item.potion {
         Some(potion) => {
             entity = entity.with(Potion {
-                heal_amount: potion.heal_amount,
+                potion_type: potion.potion_type,
+                restore_amount: potion.restore_amount,
             });
         }
         None => {}

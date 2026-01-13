@@ -4,6 +4,23 @@
         "description": "A glowing red vial of an unknown substance. Smells delicious.",
         "renderable": {
             "glyph": "i",
+            "fg": "#FF6666",
+            "index": 2
+        },
+        "spawn": {
+            "min_floor": 0,
+            "base_weight": 25
+        },
+        "potion": {
+            "potion_type": "Health",
+            "restore_amount": 10
+        }
+    },
+    {
+        "name": "Potion of pathetically minor mana",
+        "description": "A glowing bright blue vial of an unknown substance. Smells delicious.",
+        "renderable": {
+            "glyph": "i",
             "fg": "#00FFFF",
             "index": 2
         },
@@ -12,7 +29,8 @@
             "base_weight": 25
         },
         "potion": {
-            "heal_amount": 10
+            "potion_type": "Mana",
+            "restore_amount": 10
         }
     },
     {
