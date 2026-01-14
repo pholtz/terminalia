@@ -45,14 +45,28 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
         world.insert(rng.clone());
     }
 
-    let map = Map::new_map_dynamic_rooms_and_corridors(&mut rng, MapOptions {
-        width: 100,
-        height: 100,
-        has_upstairs: floor_index != 0,
-        has_downstairs: true,
-        has_debris: true,
-    });
-    let (player_x, player_y) = map.rooms[0].center();
+    let map = match floor_index {
+        0 => {
+            Map::new_map_oakwood(&mut rng, MapOptions {
+                width: 80,
+                height: 40,
+                has_upstairs: false,
+                has_downstairs: true,
+                has_debris: false,
+            })
+        }
+        _ => {
+            Map::new_map_dynamic_rooms_and_corridors(&mut rng, MapOptions {
+                width: 100,
+                height: 100,
+                has_upstairs: floor_index != 0,
+                has_downstairs: true,
+                has_debris: true,
+            })
+        }
+    };
+
+    let (player_x, player_y) = map.idx_xy(map.player_spawn_index.expect("No player spawn index"));
 
     // Update the player position to ensure that existing entities are relocated
     {

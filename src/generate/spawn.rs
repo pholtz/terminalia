@@ -331,7 +331,7 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
         })
         .with(Viewshed {
             visible_tiles: Vec::new(),
-            range: 8,
+            range: 12,
         })
         .with(BlocksTile {})
         .with(Stats {

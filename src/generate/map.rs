@@ -49,6 +49,7 @@ pub struct Map {
     pub rooms: Vec<Rect>,
     pub width: i32,
     pub height: i32,
+    pub player_spawn_index: Option<usize>,
 }
 
 impl Map {
@@ -120,6 +121,39 @@ impl Map {
             content.clear();
         }
     }
+
+    /// Procedurally creates a new map instance of oakwood, the starting village.
+    pub fn new_map_oakwood(rng: &mut RandomNumberGenerator, options: MapOptions) -> Map {
+        let width: usize = options.width as usize;
+        let height: usize = options.height as usize;
+
+        let mut map = Map {
+            tiles: vec![TileType::Floor; (width as usize) * (height as usize)],
+            tile_content: vec![Vec::new(); (width as usize) * (height as usize)],
+            revealed_tiles: vec![false; (width as usize) * (height as usize)],
+            blocked_tiles: vec![false; (width as usize) * (height as usize)],
+            bloodstains: HashSet::new(),
+            rooms: Vec::new(),
+            width: options.width,
+            height: options.height,
+            player_spawn_index: None,
+        };
+
+        // Overwrite the map borders with walls
+        for (index, tile) in map.tiles.iter_mut().enumerate() {
+            let (x, y) = fn_idx_xy(width, index);
+            if x == 0 || y == 0  || x == options.width - 1 || y == options.height - 1 {
+                *tile = TileType::Wall;
+            }
+        }
+
+        map.player_spawn_index = Some(map.xy_idx(40, 20));
+
+        let downstairs_index = map.xy_idx(40, 30);
+        map.tiles[downstairs_index] = TileType::DownStairs;
+
+        return map;        
+    }
     
     pub fn new_map_dynamic_rooms_and_corridors(rng: &mut RandomNumberGenerator, options: MapOptions) -> Map {
         let width: usize = options.width as usize;
@@ -134,6 +168,7 @@ impl Map {
             rooms: Vec::new(),
             width: options.width,
             height: options.height,
+            player_spawn_index: None,
         };
     
         for _ in 0..MAX_ROOMS {
@@ -190,8 +225,12 @@ impl Map {
             }
         }
 
-        // TODO: Ensure map is solvable
+        map.player_spawn_index = Some(map.xy_idx(
+            map.rooms[0].center().0, 
+            map.rooms[0].center().1,
+        ));
 
+        // TODO: Ensure map is solvable
         return map;
     }
 }
@@ -228,4 +267,14 @@ impl Algorithm2D for Map {
     fn dimensions(&self) -> Point {
         Point::new(self.width, self.height)
     }
+}
+
+pub fn fn_xy_idx(width: usize, x: i32, y: i32) -> usize {
+    (y as usize * width) + x as usize
+}
+
+pub fn fn_idx_xy(width: usize, idx: usize) -> (i32, i32) {
+    let x = (idx % (width as usize)) as i32;
+    let y = (idx / (width as usize)) as i32;
+    (x, y)
 }
