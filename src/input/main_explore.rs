@@ -1,12 +1,12 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use rltk::Point;
-use specs::{prelude::*, storage::GenericWriteStorage};
+use specs::prelude::*;
 use std::cmp::{max, min};
 
 use crate::{
     App, RunState, Screen,
     component::{
-        Attack, AttackType, EquipmentSlot, Equipped, Item, MagicWeapon, Monster, Player, Pool, Position, RangedWeapon, SpellKnowledge, Stats, WantsToPickupItem
+        Attack, AttackType, EquipmentSlot, Equipped, Item, MagicWeapon, Monster, Player, Pool, Position, RangedWeapon, SpellKnowledge, Stats, Vendor, WantsToPickupItem
     },
     generate::map::{Map, TileType},
     logbook::logbook::Logger, system::ranged_combat_system::{get_eligible_ranged_tiles, has_line_of_sight},
@@ -29,28 +29,28 @@ pub fn handle_main_explore_key_event(
         },
 
         KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('h') => match runstate {
-            RunState::AwaitingInput => try_move_player(-1, 0, &mut app.ecs),
+            RunState::AwaitingInput => try_move_player(-1, 0, app),
             RunState::Examining { index: _ } => try_move_examine(app, -1, 0),
             RunState::FreeAiming { index: _ } => try_move_free_aim(app, -1, 0),
             _ => None,
         },
 
         KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('l') => match runstate {
-            RunState::AwaitingInput => try_move_player(1, 0, &mut app.ecs),
+            RunState::AwaitingInput => try_move_player(1, 0, app),
             RunState::Examining { index: _ } => try_move_examine(app, 1, 0),
             RunState::FreeAiming { index: _ } => try_move_free_aim(app, 1, 0),
             _ => None,
         },
 
         KeyCode::Up | KeyCode::Char('w') | KeyCode::Char('k') => match runstate {
-            RunState::AwaitingInput => try_move_player(0, -1, &mut app.ecs),
+            RunState::AwaitingInput => try_move_player(0, -1, app),
             RunState::Examining { index: _ } => try_move_examine(app, 0, -1),
             RunState::FreeAiming { index: _ } => try_move_free_aim(app, 0, -1),
             _ => None,
         },
 
         KeyCode::Down | KeyCode::Char('s') | KeyCode::Char('j') => match runstate {
-            RunState::AwaitingInput => try_move_player(0, 1, &mut app.ecs),
+            RunState::AwaitingInput => try_move_player(0, 1, app),
             RunState::Examining { index: _ } => try_move_examine(app, 0, 1),
             RunState::FreeAiming { index: _ } => try_move_free_aim(app, 0, 1),
             _ => None,
@@ -154,14 +154,15 @@ fn try_move_free_aim(app: &mut App, delta_x: i32, delta_y: i32) -> Option<RunSta
     }
 }
 
-fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) -> Option<RunState> {
-    let entities = ecs.entities();
-    let mut positions = ecs.write_storage::<Position>();
-    let mut players = ecs.write_storage::<Player>();
-    let mut attacks = ecs.write_storage::<Attack>();
-    let stats = ecs.read_storage::<Stats>();
-    let mut player_position = ecs.write_resource::<Point>();
-    let map = ecs.fetch::<Map>();
+fn try_move_player(delta_x: i32, delta_y: i32, app: &mut App) -> Option<RunState> {
+    let entities = app.ecs.entities();
+    let mut positions = app.ecs.write_storage::<Position>();
+    let mut players = app.ecs.write_storage::<Player>();
+    let mut attacks = app.ecs.write_storage::<Attack>();
+    let monsters = app.ecs.read_storage::<Monster>();
+    let vendors = app.ecs.read_storage::<Vendor>();
+    let mut player_position = app.ecs.write_resource::<Point>();
+    let map = app.ecs.fetch::<Map>();
 
     for (entity, pos, _player) in (&entities, &mut positions, &mut players).join() {
         let next_pos_x = min(map.width - 1, max(0, pos.x + delta_x));
@@ -169,10 +170,10 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) -> Option<RunSta
         let dest = map.xy_idx(pos.x + delta_x, pos.y + delta_y);
 
         for target in map.tile_content[dest].iter() {
-            let target_stats = stats.get(*target);
-            match target_stats {
-                None => {}
-                Some(_t) => {
+            let target_monster = monsters.get(*target);
+            let target_vendor = vendors.get(*target);
+            match (target_monster, target_vendor) {
+                (Some(_monster), None) => {
                     attacks
                         .insert(
                             entity,
@@ -185,6 +186,11 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) -> Option<RunSta
                         .expect("Unable to add attack");
                     return Some(RunState::PlayerTurn);
                 }
+                (None, Some(_vendor)) => {
+                    app.screen = Screen::Trading { vendor: *target, index: 0 };
+                    return None;
+                }
+                _ => {}
             }
         }
 

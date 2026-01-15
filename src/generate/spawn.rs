@@ -1,5 +1,7 @@
+use core::panic;
 use std::{fs, sync::Mutex};
 
+use color_eyre::owo_colors::OwoColorize;
 use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use ratatui::style::Color;
@@ -8,7 +10,7 @@ use specs::prelude::*;
 
 use crate::{
     component::{
-        Armor, BlocksTile, Equippable, Hidden, Inventory, Item, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Player, Pool, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Viewshed
+        Armor, BlocksTile, Equippable, Hidden, Inventory, Item, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Player, Pool, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Vendor, Viewshed
     },
     generate::{config::{DropConfig, DropType, ItemConfig, MonsterConfig, ScrollType, parse_dice_expression}, random_table::RandomTable, rect::Rect},
 };
@@ -31,6 +33,18 @@ pub fn initialize_config() {
     let drops_raw = fs::read_to_string("./config/drops.json").unwrap();
     let drops: Vec<DropConfig> = serde_json::from_str(&drops_raw).unwrap();
     DROPS.lock().unwrap().extend(drops);
+}
+
+/// Spawns a single named item from the master list given a name and position.
+pub fn spawn_named_item(ecs: &mut World, pos: Option<Position>, item_name: String) -> Entity {
+    for item in ITEMS.lock().unwrap().iter() {
+        if item.name == item_name {
+            let mut entity = ecs.create_entity();
+            entity = spawn_item(entity, pos, item);
+            return entity.build();
+        }
+    }
+    panic!("Unable to find given item in spawn_named_item");
 }
 
 /// Spawns a weighted item based on the current floor and an internal spawn table.
@@ -60,7 +74,7 @@ pub fn spawn_weighted_item(ecs: &mut World, floor_index: u32, room: &Rect) {
             continue;
         }
         let mut entity = ecs.create_entity();
-        entity = spawn_item(entity, pos, item);
+        entity = spawn_item(entity, Some(pos), item);
         entity.build();
         break;
     }
@@ -165,20 +179,24 @@ pub fn spawn_weighted_drop(ecs: &mut World, drop_type: DropType, pos: Position) 
         let selected_item = drop_spawn_table.roll(&mut rng);
         if let Some(item) = ITEMS.lock().unwrap().iter().find(|item| item.name == selected_item) {
             let mut entity = ecs.create_entity_unchecked();
-            entity = spawn_item(entity, pos, item);
+            entity = spawn_item(entity, Some(pos), item);
             entity.build();
         }
     }
 }
 
-pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Position, item: &ItemConfig) -> EntityBuilder<'a> {
-    entity = entity.with(pos)
+pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Option<Position>, item: &ItemConfig) -> EntityBuilder<'a> {
+    entity = entity
         .with(Name {
             name: item.name.clone(),
         })
         .with(Item {
             description: item.description.clone(),
         });
+    
+    if pos.is_some() {
+        entity = entity.with(pos.unwrap());
+    }
 
     match &item.renderable {
         Some(renderable) => {
@@ -304,15 +322,42 @@ pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Position, item: &ItemC
     return entity;
 }
 
-fn color_from_hex(hex: &str) -> Result<Color, &'static str> {
-    let hex = hex.strip_prefix('#').ok_or("missing #")?;
-    if hex.len() != 6 {
-        return Err("invalid hex length");
-    }
-    let r = u8::from_str_radix(&hex[0..2], 16).map_err(|_| "bad red")?;
-    let g = u8::from_str_radix(&hex[2..4], 16).map_err(|_| "bad green")?;
-    let b = u8::from_str_radix(&hex[4..6], 16).map_err(|_| "bad blue")?;
-    Ok(Color::Rgb(r, g, b))
+pub fn spawn_npc(ecs: &mut World, x: i32, y: i32) -> Entity {
+    let health_potion = spawn_named_item(ecs, None, "Potion of pathetically minor healing".to_string());
+    return ecs
+        .create_entity()
+        .with(Position { x: x, y: y })
+        .with(Renderable {
+            glyph: '☺',
+            bg: Color::Black,
+            fg: color_from_hex("#EE82EE").expect("Unable to parse npc hex color"),
+            index: 1,
+        })
+        .with(Name { name: "Merchant".to_string() })
+        .with(BlocksTile {})
+        .with(Stats {
+            hp: Pool { current: 10, max: 10 },
+            mp: Pool { current: 10, max: 10 },
+            exp: Pool { current: 0, max: 100 },
+            level: 10,
+            strength: 10,
+            dexterity: 10,
+            constitution: 10,
+            intelligence: 10,
+            wisdom: 10,
+            charisma: 10,
+        })
+        .with(Inventory {
+            gold: 10,
+            items: IndexMap::new(),
+            index: 0,
+        })
+        .with(Vendor {
+            items: vec![
+                health_potion,
+            ]
+        })
+        .build();
 }
 
 pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
@@ -364,4 +409,15 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
             spells: vec![],
         })
         .build();
+}
+
+fn color_from_hex(hex: &str) -> Result<Color, &'static str> {
+    let hex = hex.strip_prefix('#').ok_or("missing #")?;
+    if hex.len() != 6 {
+        return Err("invalid hex length");
+    }
+    let r = u8::from_str_radix(&hex[0..2], 16).map_err(|_| "bad red")?;
+    let g = u8::from_str_radix(&hex[2..4], 16).map_err(|_| "bad green")?;
+    let b = u8::from_str_radix(&hex[4..6], 16).map_err(|_| "bad blue")?;
+    Ok(Color::Rgb(r, g, b))
 }

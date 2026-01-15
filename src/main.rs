@@ -1,8 +1,8 @@
-use std::{fs::{File}, io, time::Duration};
+use std::{fs::File, io, time::Duration};
 
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
-use log::{LevelFilter};
+use log::LevelFilter;
 use rand::Rng;
 use ratatui::{DefaultTerminal, Frame, layout::Size};
 use simplelog::{CombinedLogger, Config, WriteLogger};
@@ -27,11 +27,32 @@ use system::{
 
 use crate::{
     component::{
-        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack, Inventory, Item, Lifetime, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Player, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Viewshed, WantsToConsumeItem, WantsToPickupItem
-    }, damage_system::DamageSystem, effect::effect::process_effects, generate::{generate::{generate_floor, reset_floor}, spawn::initialize_config}, input::{
+        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack,
+        Inventory, Item, Lifetime, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Player,
+        Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable,
+        Vendor, Viewshed, WantsToConsumeItem, WantsToPickupItem,
+    },
+    damage_system::DamageSystem,
+    effect::effect::process_effects,
+    generate::{
+        generate::{generate_floor, reset_floor},
+        spawn::initialize_config,
+    },
+    input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
-        main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event, main_quit::handle_main_quit_key_event,
-    }, inventory_system::InventorySystem, map_indexing_system::MapIndexingSystem, melee_combat_system::MeleeCombatSystem, monster_system::MonsterSystem, render::{game::render_game, log::render_log, quit::render_quit}, system::{experience_system::ExperienceSystem, particle_system::ParticleSystem, ranged_combat_system::RangedCombatSystem, trigger_system::TriggerSystem}, visibility_system::VisibilitySystem
+        main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event,
+        main_quit::handle_main_quit_key_event, main_trading::handle_main_trading_key_event,
+    },
+    inventory_system::InventorySystem,
+    map_indexing_system::MapIndexingSystem,
+    melee_combat_system::MeleeCombatSystem,
+    monster_system::MonsterSystem,
+    render::{game::render_game, log::render_log, quit::render_quit, trading::render_trading},
+    system::{
+        experience_system::ExperienceSystem, particle_system::ParticleSystem,
+        ranged_combat_system::RangedCombatSystem, trigger_system::TriggerSystem,
+    },
+    visibility_system::VisibilitySystem,
 };
 
 #[derive(Debug)]
@@ -59,6 +80,15 @@ pub enum Screen {
      * and allows them to use or drop inventory item.
      */
     Inventory,
+
+    /**
+     * A non-combat screen that appears when interacting with vendors.
+     * Allows players to exchange (buy and sell) items with vendors.
+     */
+    Trading {
+        vendor: Entity,
+        index: usize,
+    },
 
     /**
      * A dialog that fires when the user prompts to quit.
@@ -119,10 +149,10 @@ impl App {
                 RootScreen::GameOver => {}
                 RootScreen::Main => {
                     match self.runstate {
-                        RunState::AwaitingInput => {},
-                        RunState::Examining { index: _ } => {},
-                        RunState::LevelUp { index: _ } => {},
-                        RunState::FreeAiming { index: _ } => {},
+                        RunState::AwaitingInput => {}
+                        RunState::Examining { index: _ } => {}
+                        RunState::LevelUp { index: _ } => {}
+                        RunState::FreeAiming { index: _ } => {}
                         RunState::PlayerTurn => next_runstate = RunState::MonsterTurn,
                         RunState::MonsterTurn => next_runstate = RunState::AwaitingInput,
                         RunState::Descending => {
@@ -130,13 +160,13 @@ impl App {
                             reset_floor(&mut self.ecs);
                             generate_floor(rand::rng().random(), self.floor_index, &mut self.ecs);
                             next_runstate = RunState::AwaitingInput;
-                        },
+                        }
                         RunState::Ascending => {
                             self.floor_index -= 1;
                             reset_floor(&mut self.ecs);
                             generate_floor(rand::rng().random(), self.floor_index, &mut self.ecs);
                             next_runstate = RunState::AwaitingInput;
-                        },
+                        }
                     }
 
                     /*
@@ -195,6 +225,7 @@ impl App {
                 Screen::Explore => handle_main_explore_key_event(self, self.runstate, key_event),
                 Screen::Log => handle_main_log_key_event(self, key_event),
                 Screen::Inventory => handle_main_inventory_key_event(self, key_event),
+                Screen::Trading { vendor, index } => handle_main_trading_key_event(self, key_event, vendor, index),
                 Screen::Quit { quit } => handle_main_quit_key_event(self, quit, key_event),
             },
             RootScreen::GameOver => handle_game_over_key_event(self, key_event),
@@ -214,6 +245,7 @@ impl App {
                 }
                 Screen::Log => render_log(self, frame),
                 Screen::Inventory => render_inventory(&mut self.ecs, self.runstate, frame),
+                Screen::Trading { vendor, index } => render_trading(&mut self.ecs, frame),
                 Screen::Quit { quit } => render_quit(&mut self.ecs, quit, frame),
             },
             RootScreen::GameOver => render_game_over(frame),
@@ -256,6 +288,7 @@ fn reinitialize_world() -> World {
     world.register::<Lifetime>();
     world.register::<Hidden>();
     world.register::<Triggerable>();
+    world.register::<Vendor>();
     return world;
 }
 
@@ -281,7 +314,11 @@ fn reinitialize_systems(world: &mut World) -> Dispatcher<'static, 'static> {
             &["map_indexing_system"],
         )
         .with(DamageSystem {}, "damage_system", &["melee_combat_system"])
-        .with(ExperienceSystem {}, "experience_system", &["melee_combat_system"])
+        .with(
+            ExperienceSystem {},
+            "experience_system",
+            &["melee_combat_system"],
+        )
         .with(
             ParticleSystem {},
             "particle_system",

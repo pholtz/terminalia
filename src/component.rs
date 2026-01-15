@@ -248,3 +248,8 @@ pub struct Hidden {
 pub struct Triggerable {
     pub damage: i32,
 }
+
+#[derive(Component, Debug)]
+pub struct Vendor {
+    pub items: Vec<Entity>,
+}

@@ -4,3 +4,4 @@ pub mod inventory;
 pub mod log;
 pub mod menu;
 pub mod quit;
+pub mod trading;

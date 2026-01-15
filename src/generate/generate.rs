@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::{
     Player, Position, RunState, component::InBackpack, generate::{
-        map::{Map, MapOptions}, spawn::{spawn_player, spawn_weighted_item, spawn_weighted_monster}
+        map::{Map, MapOptions}, spawn::{spawn_npc, spawn_player, spawn_weighted_item, spawn_weighted_monster}
     }
 };
 use rltk::{Point, RandomNumberGenerator};
@@ -47,22 +47,29 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
 
     let map = match floor_index {
         0 => {
-            Map::new_map_oakwood(&mut rng, MapOptions {
+            let map = Map::new_map_oakwood(&mut rng, MapOptions {
                 width: 80,
                 height: 40,
                 has_upstairs: false,
                 has_downstairs: true,
                 has_debris: false,
-            })
+            });
+            spawn_npc(world, 40, 10);
+            map
         }
         _ => {
-            Map::new_map_dynamic_rooms_and_corridors(&mut rng, MapOptions {
+            let map = Map::new_map_dynamic_rooms_and_corridors(&mut rng, MapOptions {
                 width: 100,
                 height: 100,
                 has_upstairs: floor_index != 0,
                 has_downstairs: true,
                 has_debris: true,
-            })
+            });
+            for (_index, room) in map.rooms.iter().skip(1).enumerate() {
+                spawn_weighted_item(world, floor_index, room);
+                spawn_weighted_monster(world, floor_index, room);
+            }
+            map
         }
     };
 
@@ -79,11 +86,6 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
             position.x = player_x;
             position.y = player_y;
         }
-    }
-
-    for (_index, room) in map.rooms.iter().skip(1).enumerate() {
-        spawn_weighted_item(world, floor_index, room);
-        spawn_weighted_monster(world, floor_index, room);
     }
 
     world.insert(RunState::AwaitingInput);

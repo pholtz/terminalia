@@ -117,7 +117,7 @@ pub fn process_command(input: String, ecs: &mut World) {
             if item.triggerable.is_some() {
                 continue;
             }
-            let entity = spawn_item(ecs.create_entity(), player_pos, item).build();
+            let entity = spawn_item(ecs.create_entity(), Some(player_pos), item).build();
             item_entities.push(entity);
         }
 

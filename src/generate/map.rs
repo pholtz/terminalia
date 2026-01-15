@@ -147,6 +147,22 @@ impl Map {
             }
         }
 
+        // Create a basic house
+        for x in 35..=45 {
+            for y in 5..=15 {
+                // door
+                if [39, 40, 41].contains(&x) && y == 15 {
+                    continue;
+                }
+                // inside
+                if x >= 36 && x <= 44 && y >= 6 && y <= 14 {
+                    continue;
+                }
+                let index = map.xy_idx(x, y);
+                map.tiles[index] = TileType::Wall;
+            }
+        }
+
         map.player_spawn_index = Some(map.xy_idx(40, 20));
 
         let downstairs_index = map.xy_idx(40, 30);
