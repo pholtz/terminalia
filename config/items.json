@@ -2,6 +2,7 @@
     {
         "name": "Potion of pathetically minor healing",
         "description": "A glowing red vial of an unknown substance. Smells delicious.",
+        "base_value": 10,
         "renderable": {
             "glyph": "i",
             "fg": "#FF6666",
@@ -19,6 +20,7 @@
     {
         "name": "Potion of pathetically minor mana",
         "description": "A glowing bright blue vial of an unknown substance. Smells delicious.",
+        "base_value": 10,
         "renderable": {
             "glyph": "i",
             "fg": "#00FFFF",
@@ -36,6 +38,7 @@
     {
         "name": "Scroll of magic mapping",
         "description": "An ancient looking, mysterious scroll that glows with a faint white light. Undecipherable.",
+        "base_value": 100,
         "renderable": {
             "glyph": "]",
             "fg": "#FF80FF",
@@ -52,6 +55,7 @@
     {
         "name": "Dagger",
         "description": "A short, pointy blade made for quick cuts.",
+        "base_value": 25,
         "renderable": {
             "glyph": "/",
             "fg": "#DDDDDD",
@@ -72,6 +76,7 @@
     {
         "name": "Shillelagh",
         "description": "A wooden stick with a rounded handle at the top end. Looks like it could be useful for walking as well as self defense.",
+        "base_value": 50,
         "renderable": {
             "glyph": "/",
             "fg": "#DDDDDD",
@@ -92,6 +97,7 @@
     {
         "name": "Battered Shield",
         "description": "A medium-sized, circular shield with some sizeable dents. Seems well made, though.",
+        "base_value": 30,
         "renderable": {
             "glyph": "0",
             "fg": "#DDDDDD",
@@ -111,6 +117,7 @@
     {
         "name": "Basic Trap",
         "description": "A small, neutral colored circular trap with sharp spikes. You probably don't want to step on this.",
+        "base_value": 40,
         "renderable": {
             "glyph": "^",
             "fg": "#FF1111",
@@ -128,6 +135,7 @@
     {
         "name": "Shortbow",
         "description": "A small bow with thin wooden limbs, comfortable and springy.",
+        "base_value": 60,
         "renderable": {
             "glyph": ")",
             "fg": "#DDDDDD",
@@ -149,6 +157,7 @@
     {
         "name": "Side sword",
         "description": "A short, ornate sword with an excellent point and edge capable of both thrusting and slashing",
+        "base_value": 60,
         "renderable": {
             "glyph": "/",
             "fg": "#DDDDDD",
@@ -169,6 +178,7 @@
     {
         "name": "Animal Hide",
         "description": "A roughly hewn length of fur and flesh from a downed creature",
+        "base_value": 2,
         "renderable": {
             "glyph": "%",
             "fg": "#AAAAAA",
@@ -182,6 +192,7 @@
     {
         "name": "Animal Bones",
         "description": "A small pile of bones from a downed creature",
+        "base_value": 2,
         "renderable": {
             "glyph": "%",
             "fg": "#AAAAAA",
@@ -195,6 +206,7 @@
     {
         "name": "Tome of Fire Magic",
         "description": "A dusty book bound in crimson leather. Exudes a slight heat.",
+        "base_value": 250,
         "renderable": {
             "glyph": "▣",
             "fg": "#DDDDDD",
@@ -217,6 +229,7 @@
     {
         "name": "Wooden Staff",
         "description": "A long, knotty staff of oak. Hardy, if a bit unrefined.",
+        "base_value": 60,
         "renderable": {
             "glyph": "|",
             "fg": "#DDDDDD",

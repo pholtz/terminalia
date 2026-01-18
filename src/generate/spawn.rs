@@ -192,6 +192,7 @@ pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Option<Position>, item
         })
         .with(Item {
             description: item.description.clone(),
+            base_value: item.base_value,
         });
     
     if pos.is_some() {
@@ -324,6 +325,7 @@ pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Option<Position>, item
 
 pub fn spawn_npc(ecs: &mut World, x: i32, y: i32) -> Entity {
     let health_potion = spawn_named_item(ecs, None, "Potion of pathetically minor healing".to_string());
+    let mana_potion = spawn_named_item(ecs, None, "Potion of pathetically minor mana".to_string());
     return ecs
         .create_entity()
         .with(Position { x: x, y: y })
@@ -355,6 +357,7 @@ pub fn spawn_npc(ecs: &mut World, x: i32, y: i32) -> Entity {
         .with(Vendor {
             items: vec![
                 health_potion,
+                mana_potion,
             ]
         })
         .build();

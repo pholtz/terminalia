@@ -8,6 +8,7 @@ use crate::component::{DamageType, EquipmentSlot, Pool, PotionType};
 pub struct ItemConfig {
     pub name: String,
     pub description: String,
+    pub base_value: i32,
     pub renderable: Option<RenderableConfig>,
     pub spawn: Option<SpawnConfig>,
     pub potion: Option<PotionConfig>,

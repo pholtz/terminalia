@@ -245,7 +245,7 @@ impl App {
                 }
                 Screen::Log => render_log(self, frame),
                 Screen::Inventory => render_inventory(&mut self.ecs, self.runstate, frame),
-                Screen::Trading { vendor, index } => render_trading(&mut self.ecs, frame),
+                Screen::Trading { vendor, index } => render_trading(&mut self.ecs, frame, vendor, index),
                 Screen::Quit { quit } => render_quit(&mut self.ecs, quit, frame),
             },
             RootScreen::GameOver => render_game_over(frame),

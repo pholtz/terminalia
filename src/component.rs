@@ -112,6 +112,7 @@ pub struct Inventory {
 #[derive(Component, Debug)]
 pub struct Item {
     pub description: String,
+    pub base_value: i32,
 }
 
 #[derive(Component, Debug)]

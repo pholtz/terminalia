@@ -39,6 +39,8 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
         .get(*player_entity)
         .expect("Unable to retrieve the player's name!");
 
+    let gold = inventory.gold;
+
     /*
      * Just render inventory in order acquired for now, with no grouping.
      */
@@ -140,6 +142,11 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
             ]),
             Line::from(""),
             Line::from(Span::styled(
+                format!("Gold: {}", gold),
+                Style::default().fg(Color::Yellow),
+            )),
+            Line::from(""),
+            Line::from(Span::styled(
                 attribute_title,
                 Style::new().fg(Color::White).add_modifier(Modifier::BOLD),
             )),
@@ -169,7 +176,7 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
 /// 
 /// For some items, like weapons and armor, there may be associated stats
 /// or other data that we want to show.
-fn format_inventory_item<'a>(
+pub fn format_inventory_item<'a>(
     name: String,
     item_entity: Entity,
     count: usize,
@@ -180,18 +187,21 @@ fn format_inventory_item<'a>(
     magic_weapons: &ReadStorage<MagicWeapon>,
     armors: &ReadStorage<Armor>,
 ) -> ListItem<'a> {
+    let (base_value, description) = items.get(item_entity)
+        .map(|item| (item.base_value, item.description.clone()))
+        .unwrap_or((0, "???".to_string()));
+
     let top_line = Line::from(vec![
         Span::styled(
             if equipped.contains(item_entity) { " [equipped] " } else { " " },
             Style::new().fg(Color::Green)
         ),
+        Span::styled(format!("[{} gold] ", base_value), Style::default().fg(Color::Yellow)),
         Span::styled(name, Style::default()),
         Span::styled(format!(" x {}", count), Style::default()),
     ]);
-    let description = items.get(item_entity)
-        .map(|item| " ".to_owned() + &item.description.clone())
-        .unwrap_or("???".to_string());
-    let desc_line = Line::from(Span::styled(description, Style::default().italic()));
+
+    let desc_line = Line::from(Span::styled(format!(" {}", description), Style::default().italic()));
 
     let mut lines = vec![
         "".into(),
