@@ -87,7 +87,9 @@ pub enum Screen {
      */
     Trading {
         vendor: Entity,
-        index: usize,
+        vendor_index: usize,
+        player_index: usize,
+        is_buying: bool,
     },
 
     /**
@@ -225,7 +227,12 @@ impl App {
                 Screen::Explore => handle_main_explore_key_event(self, self.runstate, key_event),
                 Screen::Log => handle_main_log_key_event(self, key_event),
                 Screen::Inventory => handle_main_inventory_key_event(self, key_event),
-                Screen::Trading { vendor, index } => handle_main_trading_key_event(self, key_event, vendor, index),
+                Screen::Trading {
+                    vendor,
+                    vendor_index,
+                    player_index,
+                    is_buying,
+                } => handle_main_trading_key_event(self, key_event, vendor, vendor_index, player_index, is_buying),
                 Screen::Quit { quit } => handle_main_quit_key_event(self, quit, key_event),
             },
             RootScreen::GameOver => handle_game_over_key_event(self, key_event),
@@ -245,7 +252,9 @@ impl App {
                 }
                 Screen::Log => render_log(self, frame),
                 Screen::Inventory => render_inventory(&mut self.ecs, self.runstate, frame),
-                Screen::Trading { vendor, index } => render_trading(&mut self.ecs, frame, vendor, index),
+                Screen::Trading { vendor, vendor_index, player_index, is_buying } => {
+                    render_trading(&mut self.ecs, frame, vendor, vendor_index, player_index, is_buying)
+                }
                 Screen::Quit { quit } => render_quit(&mut self.ecs, quit, frame),
             },
             RootScreen::GameOver => render_game_over(frame),

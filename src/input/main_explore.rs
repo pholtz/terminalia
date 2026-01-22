@@ -187,7 +187,12 @@ fn try_move_player(delta_x: i32, delta_y: i32, app: &mut App) -> Option<RunState
                     return Some(RunState::PlayerTurn);
                 }
                 (None, Some(_vendor)) => {
-                    app.screen = Screen::Trading { vendor: *target, index: 0 };
+                    app.screen = Screen::Trading {
+                        vendor: *target,
+                        vendor_index: 0,
+                        player_index: 0,
+                        is_buying: true,
+                    };
                     return None;
                 }
                 _ => {}
