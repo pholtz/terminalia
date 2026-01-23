@@ -7,8 +7,11 @@ use ratatui::{
 use specs::prelude::*;
 
 use crate::{
-    component::{Armor, Equipped, Inventory, Item, MagicWeapon, MeleeWeapon, Name, RangedWeapon, Vendor},
-    render::inventory::format_inventory_item,
+    component::{
+        Armor, Equipped, Inventory, Item, MagicWeapon, MeleeWeapon, Name, RangedWeapon, Vendor,
+    },
+    logbook::logbook::format_latest_text,
+    render::{inventory::format_inventory_item},
 };
 
 pub fn render_trading(
@@ -60,23 +63,40 @@ pub fn render_trading(
         })
         .collect();
 
-    let player_inventory_list: Vec<ListItem> = inventory.items.iter().enumerate()
-        .map(|item| format_inventory_item(
-            item.1.0.clone(),
-            item.1.1.first().expect("Unable to retrieve inventory item entity (top of stack)").clone(),
-            item.1.1.len(),
-            &items,
-            &equipment,
-            &melee_weapons,
-            &ranged_weapons,
-            &magic_weapons,
-            &armors,
-        )).collect();
+    let player_inventory_list: Vec<ListItem> = inventory
+        .items
+        .iter()
+        .enumerate()
+        .map(|item| {
+            format_inventory_item(
+                item.1.0.clone(),
+                item.1
+                    .1
+                    .first()
+                    .expect("Unable to retrieve inventory item entity (top of stack)")
+                    .clone(),
+                item.1.1.len(),
+                &items,
+                &equipment,
+                &melee_weapons,
+                &ranged_weapons,
+                &magic_weapons,
+                &armors,
+            )
+        })
+        .collect();
 
-    let [vendor_inventory_area, player_inventory_area] = Layout::new(Direction::Horizontal, vec![
-        Constraint::Percentage(50),
-        Constraint::Percentage(50),
-    ]).areas(frame.area());
+    let [trading_area, log_area] = Layout::new(
+        Direction::Vertical,
+        vec![Constraint::Percentage(80), Constraint::Percentage(20)],
+    )
+    .areas(frame.area());
+
+    let [vendor_inventory_area, player_inventory_area] = Layout::new(
+        Direction::Horizontal,
+        vec![Constraint::Percentage(50), Constraint::Percentage(50)],
+    )
+    .areas(trading_area);
 
     frame.render_stateful_widget(
         List::new(vendor_inventory_list)
@@ -87,12 +107,11 @@ pub fn render_trading(
                     .title_alignment(Alignment::Center)
                     .padding(Padding::uniform(1)),
             )
-            .highlight_style(
-                if is_buying {
-                    Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default()
-                })
+            .highlight_style(if is_buying {
+                Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            })
             .highlight_spacing(ratatui::widgets::HighlightSpacing::Never),
         vendor_inventory_area,
         &mut ListState::default().with_selected(Some(vendor_index)),
@@ -105,16 +124,17 @@ pub fn render_trading(
                     .title(format!("My inventory ({} gold)", inventory.gold))
                     .borders(Borders::ALL)
                     .title_alignment(Alignment::Center)
-                    .padding(Padding::uniform(1))
+                    .padding(Padding::uniform(1)),
             )
-            .highlight_style(
-                if !is_buying {
-                    Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default()
-                })
+            .highlight_style(if !is_buying {
+                Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            })
             .highlight_spacing(ratatui::widgets::HighlightSpacing::Never),
         player_inventory_area,
         &mut ListState::default().with_selected(Some(player_index)),
     );
+
+    frame.render_widget(format_latest_text(log_area.height as usize), log_area);
 }

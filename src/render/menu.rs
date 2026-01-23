@@ -23,7 +23,7 @@ const TITLE: &str = "
  * Should consist of a border and a couple selectable menu items for now.
  * Each one will change the main screen state.
  */
-pub fn render_menu(frame: &mut Frame, menu_index: u8) {
+pub fn render_menu(frame: &mut Frame<'_>, menu_index: u8) {
     let menu = Block::default()
         .borders(Borders::all())
         .padding(Padding::symmetric(5, 6))

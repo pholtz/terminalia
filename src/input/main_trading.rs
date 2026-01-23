@@ -193,7 +193,7 @@ fn try_buy_item(
             );
             player_inventory.gold += item.base_value;
             player_inventory.index = 0;
-            match player_inventory.items.entry(item_name) {
+            match player_inventory.items.entry(item_name.clone()) {
                 indexmap::map::Entry::Occupied(mut entry) => {
                     let stack = entry.get_mut();
                     let _ = stack.remove(0);
@@ -203,7 +203,20 @@ fn try_buy_item(
                 }
                 indexmap::map::Entry::Vacant(_) => {}
             }
+            let item_base_value = item.base_value;
             items.remove(item_entity.unwrap());
+            app.screen = Screen::Trading {
+                vendor: vendor_entity,
+                vendor_index: vendor_index,
+                player_index: 0,
+                is_buying: is_buying,
+            };
+            Logger::new()
+                .append("You sell the ")
+                .append_with_color(Color::Blue, format!("{} ", item_name))
+                .append("for ")
+                .append_with_color(Color::Yellow, format!("{} gold.", item_base_value))
+                .log();
         }
     }
     return None;
