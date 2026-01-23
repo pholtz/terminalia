@@ -6,7 +6,7 @@ use std::cmp::{max, min};
 use crate::{
     App, RunState, Screen,
     component::{
-        Attack, AttackType, EquipmentSlot, Equipped, Item, MagicWeapon, Monster, Player, Pool, Position, RangedWeapon, SpellKnowledge, Stats, Vendor, WantsToPickupItem
+        Attack, AttackType, EquipmentSlot, Equipped, Item, MagicWeapon, Monster, Npc, Player, Pool, Position, RangedWeapon, SpellKnowledge, Stats, Vendor, WantsToPickupItem
     },
     generate::map::{Map, TileType},
     logbook::logbook::Logger, system::ranged_combat_system::{get_eligible_ranged_tiles, has_line_of_sight},
@@ -21,6 +21,7 @@ pub fn handle_main_explore_key_event(
         KeyCode::Esc => match runstate {
             RunState::Examining { index: _ } => Some(RunState::AwaitingInput),
             RunState::FreeAiming { index: _ } => Some(RunState::AwaitingInput),
+            RunState::Dialogue { npc: _ } => Some(RunState::AwaitingInput),
             RunState::AwaitingInput => {
                 app.screen = Screen::Quit { quit: false };
                 None
@@ -160,6 +161,7 @@ fn try_move_player(delta_x: i32, delta_y: i32, app: &mut App) -> Option<RunState
     let mut players = app.ecs.write_storage::<Player>();
     let mut attacks = app.ecs.write_storage::<Attack>();
     let monsters = app.ecs.read_storage::<Monster>();
+    let npcs = app.ecs.read_storage::<Npc>();
     let vendors = app.ecs.read_storage::<Vendor>();
     let mut player_position = app.ecs.write_resource::<Point>();
     let map = app.ecs.fetch::<Map>();
@@ -171,9 +173,10 @@ fn try_move_player(delta_x: i32, delta_y: i32, app: &mut App) -> Option<RunState
 
         for target in map.tile_content[dest].iter() {
             let target_monster = monsters.get(*target);
+            let target_npc = npcs.get(*target);
             let target_vendor = vendors.get(*target);
-            match (target_monster, target_vendor) {
-                (Some(_monster), None) => {
+            match (target_monster, target_npc, target_vendor) {
+                (Some(_monster), None, None) => {
                     attacks
                         .insert(
                             entity,
@@ -186,7 +189,10 @@ fn try_move_player(delta_x: i32, delta_y: i32, app: &mut App) -> Option<RunState
                         .expect("Unable to add attack");
                     return Some(RunState::PlayerTurn);
                 }
-                (None, Some(_vendor)) => {
+                (None, Some(_npc), None) => {
+                    return Some(RunState::Dialogue { npc: *target });
+                }
+                (None, Some(_npc), Some(_vendor)) => {
                     app.screen = Screen::Trading {
                         vendor: *target,
                         vendor_index: 0,

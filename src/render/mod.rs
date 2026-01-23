@@ -1,3 +1,4 @@
+pub mod base;
 pub mod game;
 pub mod game_over;
 pub mod inventory;

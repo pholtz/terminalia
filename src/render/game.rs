@@ -1,21 +1,17 @@
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Size},
+    layout::{Alignment, Constraint, Direction, Layout, Size},
     style::{Color, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Clear, Padding, Paragraph, Wrap},
 };
 use rltk::Point;
 use specs::prelude::*;
 
 use crate::{
-    RunState,
-    component::{
-        EquipmentSlot, Equipped, Hidden, Inventory, Item, MagicWeapon, Name, Pool, Position, RangedWeapon, Renderable, Stats
-    },
-    generate::map::{Map, TileType},
-    logbook::logbook::{format_latest_text},
-    system::ranged_combat_system::get_eligible_ranged_tiles,
+    RunState, component::{
+        EquipmentSlot, Equipped, Hidden, Inventory, Item, MagicWeapon, Name, Npc, Pool, Position, RangedWeapon, Renderable, Stats
+    }, generate::map::{Map, TileType}, logbook::logbook::format_latest_text, render::base::centered_rect, system::ranged_combat_system::get_eligible_ranged_tiles
 };
 
 pub const VIEW_WIDTH: i32 = 80;
@@ -362,6 +358,37 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
         .block(Block::new().borders(Borders::NONE)),
         right_vertical_layout[0],
     );
+
+    /*
+     * D I A L O G U E  M O D A L
+     * 
+     * In the event of npc dialogue, we want to render a part screen modal over
+     * the explore window. We do this by calculating a subset of the frame area
+     * and rendering a paragraph over it last, to effectively overwrite the output.
+     */
+    match *runstate {
+        RunState::Dialogue { npc } => {
+            let npcs = ecs.read_storage::<Npc>();
+            let dialogue = npcs.get(npc).expect("Unable to access given npc component").dialogue.clone();
+            if dialogue.is_some() {
+                let modal_area = centered_rect(90, 90, left_vertical_layout[0]);
+                frame.render_widget(Clear, modal_area);
+                frame.render_widget(
+                    Paragraph::new(Text::from(dialogue.unwrap().join("\n\n")))
+                        .style(Style::default().fg(Color::White).bg(Color::Black))
+                        .wrap(Wrap { trim: true })
+                        .block(Block::default()
+                            .title("Dialogue")
+                            .title_alignment(Alignment::Center)
+                            .borders(Borders::ALL)
+                            .padding(Padding::uniform(2))
+                        ),
+                    modal_area,
+                );
+            }
+        }
+        _ => {}
+    }
 }
 
 /**

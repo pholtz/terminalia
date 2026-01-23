@@ -251,6 +251,11 @@ pub struct Triggerable {
 }
 
 #[derive(Component, Debug)]
+pub struct Npc {
+    pub dialogue: Option<Vec<String>>,
+}
+
+#[derive(Component, Debug)]
 pub struct Vendor {
     pub items: Vec<Entity>,
 }

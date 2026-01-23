@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::{
     Player, Position, RunState, component::InBackpack, generate::{
-        map::{Map, MapOptions}, spawn::{spawn_npc, spawn_player, spawn_weighted_item, spawn_weighted_monster}
+        map::{Map, MapOptions}, spawn::{spawn_npc_captain, spawn_npc_merchant, spawn_player, spawn_weighted_item, spawn_weighted_monster}
     }
 };
 use rltk::{Point, RandomNumberGenerator};
@@ -54,7 +54,8 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
                 has_downstairs: true,
                 has_debris: false,
             });
-            spawn_npc(world, 40, 10);
+            spawn_npc_merchant(world, 40, 10);
+            spawn_npc_captain(world, 60, 25);
             map
         }
         _ => {

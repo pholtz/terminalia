@@ -10,7 +10,7 @@ use specs::prelude::*;
 
 use crate::{
     component::{
-        Armor, BlocksTile, Equippable, Hidden, Inventory, Item, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Player, Pool, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Vendor, Viewshed
+        Armor, BlocksTile, Equippable, Hidden, Inventory, Item, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Npc, Player, Pool, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Vendor, Viewshed
     },
     generate::{config::{DropConfig, DropType, ItemConfig, MonsterConfig, ScrollType, parse_dice_expression}, random_table::RandomTable, rect::Rect},
 };
@@ -323,7 +323,7 @@ pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Option<Position>, item
     return entity;
 }
 
-pub fn spawn_npc(ecs: &mut World, x: i32, y: i32) -> Entity {
+pub fn spawn_npc_merchant(ecs: &mut World, x: i32, y: i32) -> Entity {
     let health_potion = spawn_named_item(ecs, None, "Potion of pathetically minor healing".to_string());
     let mana_potion = spawn_named_item(ecs, None, "Potion of pathetically minor mana".to_string());
     return ecs
@@ -354,11 +354,62 @@ pub fn spawn_npc(ecs: &mut World, x: i32, y: i32) -> Entity {
             items: IndexMap::new(),
             index: 0,
         })
+        .with(Npc {
+            dialogue: None,
+        })
         .with(Vendor {
             items: vec![
                 health_potion,
                 mana_potion,
             ]
+        })
+        .build();
+}
+
+pub fn spawn_npc_captain(ecs: &mut World, x: i32, y: i32) -> Entity {
+    return ecs
+        .create_entity()
+        .with(Position { x: x, y: y })
+        .with(Renderable {
+            glyph: '☺',
+            bg: Color::Black,
+            fg: color_from_hex("#EE82EE").expect("Unable to parse npc hex color"),
+            index: 1,
+        })
+        .with(Name { name: "Captain Reynolds".to_string() })
+        .with(BlocksTile {})
+        .with(Stats {
+            hp: Pool { current: 10, max: 10 },
+            mp: Pool { current: 10, max: 10 },
+            exp: Pool { current: 0, max: 100 },
+            level: 10,
+            strength: 10,
+            dexterity: 10,
+            constitution: 10,
+            intelligence: 10,
+            wisdom: 10,
+            charisma: 10,
+        })
+        .with(Inventory {
+            gold: 10,
+            items: IndexMap::new(),
+            index: 0,
+        })
+        .with(Npc {
+            dialogue: Some(vec![
+                "Hello there!".to_string(),
+                "I'm Captain Reynolds. Welcome to Oakwood, the jewel of Terminalia. \
+                Ahh, i'm just kidding...we're just a small mining establishment in the middle of the putrid plains. \
+                What brings you out here?".to_string(),
+                "...".to_string(),
+                "The silent type, eh? Well, you'll fit in just fine around here. \
+                Most folks don't have much to say around here, especially after all the disappearances. \
+                Things have gotten bad since we lost contact with the Dwarven mining party below ground. \
+                We rely on them for equipment just as they rely on us for supplies.".to_string(),
+                "If you'd like to learn more, Corporal Smith can fill you in. \
+                At this hour, you can usually find him at the tavern. \
+                If i'm being honest, you can find him there most hours, ha.".to_string(),
+            ]),
         })
         .build();
 }

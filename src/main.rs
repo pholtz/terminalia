@@ -27,10 +27,7 @@ use system::{
 
 use crate::{
     component::{
-        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack,
-        Inventory, Item, Lifetime, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Player,
-        Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable,
-        Vendor, Viewshed, WantsToConsumeItem, WantsToPickupItem,
+        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack, Inventory, Item, Lifetime, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Npc, Player, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Vendor, Viewshed, WantsToConsumeItem, WantsToPickupItem
     },
     damage_system::DamageSystem,
     effect::effect::process_effects,
@@ -104,6 +101,7 @@ pub enum RunState {
     Examining { index: usize },
     LevelUp { index: usize },
     FreeAiming { index: usize },
+    Dialogue { npc: Entity },
     PlayerTurn,
     MonsterTurn,
     Descending,
@@ -155,6 +153,7 @@ impl App {
                         RunState::Examining { index: _ } => {}
                         RunState::LevelUp { index: _ } => {}
                         RunState::FreeAiming { index: _ } => {}
+                        RunState::Dialogue { npc: _ } => {},
                         RunState::PlayerTurn => next_runstate = RunState::MonsterTurn,
                         RunState::MonsterTurn => next_runstate = RunState::AwaitingInput,
                         RunState::Descending => {
@@ -297,6 +296,7 @@ fn reinitialize_world() -> World {
     world.register::<Lifetime>();
     world.register::<Hidden>();
     world.register::<Triggerable>();
+    world.register::<Npc>();
     world.register::<Vendor>();
     return world;
 }
