@@ -8,10 +8,10 @@ use specs::prelude::*;
 
 use crate::{
     component::{
-        Armor, Equipped, Inventory, Item, MagicWeapon, MeleeWeapon, Name, RangedWeapon, Vendor,
+        Armor, Equippable, Equipped, Inventory, Item, MagicWeapon, MeleeWeapon, Name, RangedWeapon, Vendor
     },
     logbook::logbook::format_latest_text,
-    render::{inventory::format_inventory_item},
+    render::inventory::format_inventory_item,
 };
 
 pub fn render_trading(
@@ -31,6 +31,7 @@ pub fn render_trading(
     let ranged_weapons = ecs.read_storage::<RangedWeapon>();
     let magic_weapons = ecs.read_storage::<MagicWeapon>();
     let armors = ecs.read_storage::<Armor>();
+    let equippables = ecs.read_storage::<Equippable>();
     let vendors = ecs.read_storage::<Vendor>();
 
     let inventory = inventories
@@ -59,6 +60,7 @@ pub fn render_trading(
                 &ranged_weapons,
                 &magic_weapons,
                 &armors,
+                &equippables,
             )
         })
         .collect();
@@ -82,6 +84,7 @@ pub fn render_trading(
                 &ranged_weapons,
                 &magic_weapons,
                 &armors,
+                &equippables,
             )
         })
         .collect();

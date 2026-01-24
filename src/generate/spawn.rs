@@ -326,6 +326,11 @@ pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Option<Position>, item
 pub fn spawn_npc_merchant(ecs: &mut World, x: i32, y: i32) -> Entity {
     let health_potion = spawn_named_item(ecs, None, "Potion of pathetically minor healing".to_string());
     let mana_potion = spawn_named_item(ecs, None, "Potion of pathetically minor mana".to_string());
+    let steel_shield = spawn_named_item(ecs, None, "Steel Shield".to_string());
+    let steel_chestplate = spawn_named_item(ecs, None, "Steel Chestplate".to_string());
+    let steel_gauntlets = spawn_named_item(ecs, None, "Steel Gauntlets".to_string());
+    let steel_chausses = spawn_named_item(ecs, None, "Steel Chausses".to_string());
+    let steel_boots = spawn_named_item(ecs, None, "Steel Boots".to_string());
     return ecs
         .create_entity()
         .with(Position { x: x, y: y })
@@ -361,6 +366,11 @@ pub fn spawn_npc_merchant(ecs: &mut World, x: i32, y: i32) -> Entity {
             items: vec![
                 health_potion,
                 mana_potion,
+                steel_shield,
+                steel_chestplate,
+                steel_gauntlets,
+                steel_chausses,
+                steel_boots,
             ]
         })
         .build();
@@ -455,7 +465,7 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
             charisma: 10,
         })
         .with(Inventory {
-            gold: 10,
+            gold: 0,
             items: IndexMap::new(),
             index: 0,
         })

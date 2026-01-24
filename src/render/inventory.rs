@@ -7,7 +7,7 @@ use ratatui::{
 };
 use specs::prelude::*;
 
-use crate::{RunState, component::{Armor, Equipped, Inventory, Item, MagicWeapon, MeleeWeapon, Name, RangedWeapon, Stats}, render::game::format_pools};
+use crate::{RunState, component::{Armor, EquipmentSlot, Equippable, Equipped, Inventory, Item, MagicWeapon, MeleeWeapon, Name, RangedWeapon, Stats}, render::game::format_pools};
 
 /**
  * This render function fires when the player is ingame and viewing their inventory.
@@ -26,6 +26,7 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
     let ranged_weapons = ecs.read_storage::<RangedWeapon>();
     let magic_weapons = ecs.read_storage::<MagicWeapon>();
     let armors = ecs.read_storage::<Armor>();
+    let equippables = ecs.read_storage::<Equippable>();
 
     let inventory = inventories
         .get(*player_entity)
@@ -55,6 +56,7 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
             &ranged_weapons,
             &magic_weapons,
             &armors,
+            &equippables,
         )).collect();
 
     let mut state = ListState::default();
@@ -186,10 +188,13 @@ pub fn format_inventory_item<'a>(
     ranged_weapons: &ReadStorage<RangedWeapon>,
     magic_weapons: &ReadStorage<MagicWeapon>,
     armors: &ReadStorage<Armor>,
+    equippables: &ReadStorage<Equippable>,
 ) -> ListItem<'a> {
     let (base_value, description) = items.get(item_entity)
         .map(|item| (item.base_value, item.description.clone()))
         .unwrap_or((0, "???".to_string()));
+
+    let slot = equippables.get(item_entity).map(|e| e.slot);
 
     let top_line = Line::from(vec![
         Span::styled(
@@ -238,11 +243,10 @@ pub fn format_inventory_item<'a>(
     }
 
     if let Some(armor) = armors.get(item_entity) {
-        lines.push(format!(
-            " [armor] Type: {} | Defense: {}",
-            "???",
-            armor.defense,
-        ).into());
+        lines.push(Line::from(vec![
+            Span::styled(format!(" [armor] Type: {:?} | Defense: ", slot.unwrap_or(EquipmentSlot::Head)), Style::default()),
+            Span::styled(format!("{}", armor.defense), Style::default().fg(Color::Yellow)),
+        ]));
         lines.push("".into());
     }
 
