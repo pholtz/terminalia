@@ -1,0 +1,329 @@
+##############################
+#  I T E M  M A N I F E S T  #
+##############################
+
+- name: Potion of pathetically minor healing
+  description: "A glowing red vial of an unknown substance. Smells delicious."
+  base_value: 10
+  renderable:
+    glyph: "i"
+    fg: "#FF6666"
+    index: 2
+  spawn:
+    min_floor: 0
+    base_weight: 25
+  potion:
+    potion_type: Health
+    restore_amount: 10
+
+- name: Potion of pathetically minor mana
+  description: "A glowing bright blue vial of an unknown substance. Smells delicious."
+  base_value: 10
+  renderable:
+    glyph: "i"
+    fg: "#00FFFF"
+    index: 2
+  spawn:
+    min_floor: 0
+    base_weight: 25
+  potion:
+    potion_type: Mana
+    restore_amount: 10
+
+- name: Scroll of magic mapping
+  description: "An ancient looking, mysterious scroll that glows with a faint white light. Undecipherable."
+  base_value: 100
+  renderable:
+    glyph: "]"
+    fg: "#FF80FF"
+    index: 2
+  spawn:
+    min_floor: 0
+    base_weight: 5
+  scroll:
+    scroll_type: MagicMapper
+
+- name: Dagger
+  description: "A short, pointy blade made for quick cuts."
+  base_value: 25
+  renderable:
+    glyph: "/"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 0
+    base_weight: 10
+  equippable:
+    slot: Weapon
+  melee_weapon:
+    damage: "1d4"
+    damage_type: Piercing
+
+- name: Shillelagh
+  description: "A wooden stick with a rounded handle at the top end. Looks like it could be useful for walking as well as self defense."
+  base_value: 50
+  renderable:
+    glyph: "/"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 1
+    base_weight: 5
+  equippable:
+    slot: Weapon
+  melee_weapon:
+    damage: "1d6"
+    damage_type: Bludgeoning
+
+- name: Shortbow
+  description: "A small bow with thin wooden limbs, comfortable and springy."
+  base_value: 60
+  renderable:
+    glyph: ")"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 1
+    base_weight: 50
+  equippable:
+    slot: Weapon
+  ranged_weapon:
+    damage: "1d6"
+    damage_type: Piercing
+    range: 12
+
+- name: Side Sword
+  description: "A short, ornate sword with an excellent point and edge capable of both thrusting and slashing"
+  base_value: 60
+  renderable:
+    glyph: "/"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 1
+    base_weight: 5
+  equippable:
+    slot: Weapon
+  melee_weapon:
+    damage: "1d6+1"
+    damage_type: Piercing
+
+- name: Wooden Staff
+  description: "A long, knotty staff of oak. Hardy, if a bit unrefined."
+  base_value: 60
+  renderable:
+    glyph: "|"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 1
+    base_weight: 5
+  equippable:
+    slot: Weapon
+  melee_weapon:
+    damage: "1d4"
+    damage_type: Bludgeoning
+  magic_weapon: {}
+
+- name: Tome of Fire Magic
+  description: "A dusty book bound in crimson leather. Exudes a slight heat."
+  base_value: 250
+  renderable:
+    glyph: "▣"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 1
+    base_weight: 10
+  spells:
+    - name: Fireball
+      mp_cost: 4
+      damage: "2d6+2"
+      damage_type: Fire
+      range: 12
+
+- name: Battered Shield
+  description: "A medium-sized, circular shielf with some sizeable dents. Seems well made, though."
+  base_value: 30
+  renderable:
+    glyph: "0"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 0
+    base_weight: 10
+  equippable:
+    slot: Shield
+  armor:
+    defense: 1
+
+- name: Padded Gambeson
+  description: "A thick, cloth doublet. Provides a small amount of defense when worn in place of proper armor."
+  base_value: 50
+  renderable:
+    glyph: "A"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 0
+    base_weight: 10
+  equippable:
+    slot: Chest
+  armor:
+    defense: 2
+
+- name: Padded Gloves
+  description: "A pair of thick, cloth gloves. Provides a small amount of defense when worn in place of proper armor."
+  base_value: 25
+  renderable:
+    glyph: "A"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 0
+    base_weight: 10
+  equippable:
+    slot: Hands
+  armor:
+    defense: 1
+
+- name: Padded Chausses
+  description: "A thick, cloth leg armor. Provides a small amount of defense when worn in place of proper armor."
+  base_value: 40
+  renderable:
+    glyph: "A"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 0
+    base_weight: 10
+  equippable:
+    slot: Legs
+  armor:
+    defense: 2
+
+- name: Leather Boots
+  description: "A pair of thick boots. Provides a small amount of defense when worn in place of proper armor."
+  base_value: 25
+  renderable:
+    glyph: "A"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 0
+    base_weight: 10
+  equippable:
+    slot: Feet
+  armor:
+    defense: 1
+
+- name: Steel Shield
+  description: "A medium-sized, triangular heater shield of forged steel."
+  base_value: 300
+  renderable:
+    glyph: "0"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 10
+    base_weight: 2
+  equippable:
+    slot: Shield
+  armor:
+    defense: 6
+
+- name: Steel Chestplate
+  description: "A sturdy, rigid steel chestplate covering your upper body and arms."
+  base_value: 600
+  renderable:
+    glyph: "A"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 10
+    base_weight: 2
+  equippable:
+    slot: Chest
+  armor:
+    defense: 10
+
+- name: Steel Gauntlets
+  description: "A pair of thick gloves with overlapping steel plates for protection."
+  base_value: 200
+  renderable:
+    glyph: "A"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 10
+    base_weight: 2
+  equippable:
+    slot: Hands
+  armor:
+    defense: 3
+
+- name: Steel Chausses
+  description: "A study steel leg armor."
+  base_value: 500
+  renderable:
+    glyph: "A"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 10
+    base_weight: 2
+  equippable:
+    slot: Legs
+  armor:
+    defense: 8
+
+- name: Steel Boots
+  description: "A pair of thick boots covered in plated steel for protection."
+  base_value: 250
+  renderable:
+    glyph: "A"
+    fg: "#DDDDDD"
+    index: 2
+  spawn:
+    min_floor: 10
+    base_weight: 2
+  equippable:
+    slot: Feet
+  armor:
+    defense: 4
+
+- name: Basic Trap
+  description: "A small, neutral colored circular trap with sharp spikes. You probably don't want to step on this."
+  base_value: 40
+  renderable:
+    glyph: "^"
+    fg: "#FF1111"
+    index: 2
+  spawn:
+    min_floor: 0
+    base_weight: 10
+  hidden: true
+  triggerable:
+    damage: 8
+
+- name: Animal Hide
+  description: "A roughly hewn length of fur and flesh from a downed creature."
+  base_value: 2
+  renderable:
+    glyph: "%"
+    fg: "#AAAAAA"
+    index: 2
+  spawn:
+    min_floor: 0
+    base_weight: 1
+
+- name: Animal Bones
+  description: "A small pile of bones from a downed creature."
+  base_value: 2
+  renderable:
+    glyph: "%"
+    fg: "#AAAAAA"
+    index: 2
+  spawn:
+    min_floor: 0
+    base_weight: 1

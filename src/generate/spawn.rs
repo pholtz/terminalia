@@ -1,7 +1,6 @@
 use core::panic;
 use std::{fs, sync::Mutex};
 
-use color_eyre::owo_colors::OwoColorize;
 use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use ratatui::style::Color;
@@ -22,15 +21,18 @@ lazy_static! {
 }
 
 pub fn initialize_config() {
-    let items_raw = fs::read_to_string("./config/items.json").unwrap();
-    let items: Vec<ItemConfig> = serde_json::from_str(&items_raw).unwrap();
+    let items_raw = fs::read_to_string("config/items.yaml")
+        .unwrap_or_else(|_| include_str!("../../config/items.yaml").to_string());
+    let items: Vec<ItemConfig> = serde_yaml::from_str(&items_raw).unwrap();
     ITEMS.lock().unwrap().extend(items);
 
-    let monsters_raw = fs::read_to_string("./config/monsters.json").unwrap();
+    let monsters_raw = fs::read_to_string("./config/monsters.json")
+        .unwrap_or_else(|_| include_str!("../../config/monsters.json").to_string());
     let monsters: Vec<MonsterConfig> = serde_json::from_str(&monsters_raw).unwrap();
     MONSTERS.lock().unwrap().extend(monsters);
 
-    let drops_raw = fs::read_to_string("./config/drops.json").unwrap();
+    let drops_raw = fs::read_to_string("./config/drops.json")
+        .unwrap_or_else(|_| include_str!("../../config/drops.json").to_string());
     let drops: Vec<DropConfig> = serde_json::from_str(&drops_raw).unwrap();
     DROPS.lock().unwrap().extend(drops);
 }
