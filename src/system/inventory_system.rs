@@ -1,10 +1,9 @@
 use ratatui::style::Color;
-use specs::{Entities, Entity, Join, ReadExpect, ReadStorage, System, WriteExpect, WriteStorage};
+use specs::{BitSet, Entities, Entity, Join, ReadExpect, ReadStorage, System, WriteExpect, WriteStorage};
 
 use crate::{
     component::{
-        Equippable, Equipped, InBackpack, Inventory, MagicMapper, Name, Position, Potion,
-        PotionType, Spell, SpellKnowledge, Stats, WantsToConsumeItem, WantsToPickupItem,
+        AttackType, EquipmentSlot, Equippable, Equipped, InBackpack, Inventory, MagicMapper, MagicWeapon, MeleeWeapon, Name, Position, Potion, PotionType, RangedWeapon, Spell, SpellKnowledge, Stats, WantsToConsumeItem, WantsToPickupItem
     },
     generate::map::Map,
     logbook::logbook::Logger,
@@ -229,10 +228,12 @@ impl<'a> System<'a> for InventorySystem {
 
             if !has_effect {
                 Logger::new()
-                    .append(format!(
-                        "You consume the {}, but nothing happens.",
-                        item_name.name
-                    ))
+                    .append(
+                        if should_consume {
+                            format!("You consume the {}, but nothing happens.", item_name.name)
+                        } else {
+                            format!("You attempt to consume the {}, but nothing happens.", item_name.name)
+                        })
                     .log();
             }
 
@@ -258,4 +259,32 @@ impl<'a> System<'a> for InventorySystem {
         }
         wants_consume.clear();
     }
+}
+
+pub fn get_equipped_weapon(
+    player_entity: Entity,
+    entities: &Entities,
+    equipment: &ReadStorage<Equipped>,
+    melee_weapons: &ReadStorage<MeleeWeapon>,
+    ranged_weapons: &ReadStorage<RangedWeapon>,
+    magic_weapons: &ReadStorage<MagicWeapon>,
+) -> Option<(AttackType, Entity)> {
+    let mut weapon_mask = BitSet::new();
+    weapon_mask |= melee_weapons.mask();
+    weapon_mask |= ranged_weapons.mask();
+    weapon_mask |= magic_weapons.mask();
+    for (entity, equipment, _) in (entities, equipment, weapon_mask).join() {
+        if equipment.owner != player_entity { continue; }
+        if equipment.slot != EquipmentSlot::Weapon { continue; }
+        let melee = melee_weapons.get(entity);
+        let ranged = ranged_weapons.get(entity);
+        let magic = magic_weapons.get(entity);
+        return match (melee, ranged, magic) {
+            (Some(_melee), None, None) => Some((AttackType::Melee, entity)),
+            (None, Some(_ranged), None) => Some((AttackType::Ranged, entity)),
+            (None, None, Some(_magic)) => Some((AttackType::Magic, entity)),
+            _ => None,
+        }
+    }
+    None
 }

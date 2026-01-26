@@ -7,7 +7,7 @@ use ratatui::{
 };
 use specs::prelude::*;
 
-use crate::{RunState, component::{Armor, EquipmentSlot, Equippable, Equipped, Inventory, Item, MagicWeapon, MeleeWeapon, Name, RangedWeapon, Stats}, render::game::format_pools};
+use crate::{RunState, component::{Armor, AttackType, EquipmentSlot, Equippable, Equipped, Inventory, Item, MagicWeapon, MeleeWeapon, Name, RangedWeapon, Stats}, render::game::format_pools, system::inventory_system::get_equipped_weapon};
 
 /**
  * This render function fires when the player is ingame and viewing their inventory.
@@ -16,6 +16,7 @@ use crate::{RunState, component::{Armor, EquipmentSlot, Equippable, Equipped, In
  * Includes the quantity per held item as well as any relevant equipment stats or descriptions.
  */
 pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) {
+    let entities = ecs.entities();
     let player_entity = ecs.fetch::<Entity>();
     let inventories = ecs.read_storage::<Inventory>();
     let items = ecs.read_storage::<Item>();
@@ -41,6 +42,10 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
         .expect("Unable to retrieve the player's name!");
 
     let gold = inventory.gold;
+
+    let weapon: Option<(AttackType, Entity)> = get_equipped_weapon(
+        *player_entity, &entities, &equipment, &melee_weapons, &ranged_weapons, &magic_weapons
+    );
 
     /*
      * Just render inventory in order acquired for now, with no grouping.
@@ -158,6 +163,16 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
             Line::from(Span::styled(fstat.intelligence.0, fstat.intelligence.1)),
             Line::from(Span::styled(fstat.wisdom.0, fstat.wisdom.1)),
             Line::from(Span::styled(fstat.charisma.0, fstat.charisma.1)),
+            Line::from(""),
+            Line::from(Span::styled(
+                format!(
+                    "Weapon: {}",
+                    weapon.map(|w| format_weapon(w, &names, &melee_weapons, &ranged_weapons, &magic_weapons))
+                        .unwrap_or("__".to_string()
+                    )
+                ),
+                Style::default(),
+            ))
         ])).block(
             Block::new()
                 .title("Character")
@@ -167,6 +182,37 @@ pub fn render_inventory(ecs: &mut World, runstate: RunState, frame: &mut Frame) 
         ),
         character_layout[0],
     );
+}
+
+fn format_weapon(
+    weapon: (AttackType, Entity),
+    names: &ReadStorage<Name>,
+    melee_weapons: &ReadStorage<MeleeWeapon>,
+    ranged_weapons: &ReadStorage<RangedWeapon>,
+    _magic_weapons: &ReadStorage<MagicWeapon>,
+) -> String {
+    match weapon.0 {
+        AttackType::Melee => {
+            format!(
+                "{} | {}",
+                names.get(weapon.1).map(|n| n.name.clone()).unwrap_or("???".to_string()),
+                melee_weapons.get(weapon.1).map(|w| w.damage.to_expression()).unwrap_or("???".to_string()),
+            )
+        }
+        AttackType::Ranged => {
+            format!(
+                "{} | {}",
+                names.get(weapon.1).map(|n| n.name.clone()).unwrap_or("???".to_string()),
+                ranged_weapons.get(weapon.1).map(|w| w.damage.to_expression()).unwrap_or("???".to_string()),
+            )
+        }
+        AttackType::Magic => {
+            format!(
+                "{}",
+                names.get(weapon.1).map(|n| n.name.clone()).unwrap_or("???".to_string()),
+            )
+        }
+    }
 }
 
 /// Render each inventory item using the given ecs datasets.
