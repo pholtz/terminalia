@@ -26,9 +26,9 @@ pub fn initialize_config() {
     let items: Vec<ItemConfig> = serde_yaml::from_str(&items_raw).unwrap();
     ITEMS.lock().unwrap().extend(items);
 
-    let monsters_raw = fs::read_to_string("./config/monsters.json")
-        .unwrap_or_else(|_| include_str!("../../config/monsters.json").to_string());
-    let monsters: Vec<MonsterConfig> = serde_json::from_str(&monsters_raw).unwrap();
+    let monsters_raw = fs::read_to_string("./config/monsters.yaml")
+        .unwrap_or_else(|_| include_str!("../../config/monsters.yaml").to_string());
+    let monsters: Vec<MonsterConfig> = serde_yaml::from_str(&monsters_raw).unwrap();
     MONSTERS.lock().unwrap().extend(monsters);
 
     let drops_raw = fs::read_to_string("./config/drops.json")
