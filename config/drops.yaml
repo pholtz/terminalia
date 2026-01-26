@@ -1,0 +1,20 @@
+- drop_type: Animal
+  drops:
+    - name: Animal Hide
+      weight: 10
+    - name: Animal Bones
+      weight: 5
+
+- drop_type: Goblin
+  drops:
+    - name: Dagger
+      weight: 10
+    - name: Basic Trap
+      weight: 2
+
+- drop_type: Orc
+  drops:
+    - name: Padded Gloves
+      weight: 10
+    - name: Leather Boots
+      weight: 10

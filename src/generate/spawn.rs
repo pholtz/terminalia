@@ -9,9 +9,17 @@ use specs::prelude::*;
 
 use crate::{
     component::{
-        Armor, BlocksTile, Equippable, Hidden, Inventory, Item, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Npc, Player, Pool, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Vendor, Viewshed
+        Armor, BlocksTile, Equippable, Hidden, Inventory, Item, MagicMapper, MagicWeapon,
+        MeleeWeapon, Monster, Name, Npc, Player, Pool, Position, Potion, RangedWeapon, Renderable,
+        Spell, SpellKnowledge, Stats, Triggerable, Vendor, Viewshed,
     },
-    generate::{config::{DropConfig, DropType, ItemConfig, MonsterConfig, ScrollType, parse_dice_expression}, random_table::RandomTable, rect::Rect},
+    generate::{
+        config::{
+            DropConfig, DropType, ItemConfig, MonsterConfig, ScrollType, parse_dice_expression,
+        },
+        random_table::RandomTable,
+        rect::Rect,
+    },
 };
 
 lazy_static! {
@@ -31,9 +39,9 @@ pub fn initialize_config() {
     let monsters: Vec<MonsterConfig> = serde_yaml::from_str(&monsters_raw).unwrap();
     MONSTERS.lock().unwrap().extend(monsters);
 
-    let drops_raw = fs::read_to_string("./config/drops.json")
-        .unwrap_or_else(|_| include_str!("../../config/drops.json").to_string());
-    let drops: Vec<DropConfig> = serde_json::from_str(&drops_raw).unwrap();
+    let drops_raw = fs::read_to_string("./config/drops.yaml")
+        .unwrap_or_else(|_| include_str!("../../config/drops.yaml").to_string());
+    let drops: Vec<DropConfig> = serde_yaml::from_str(&drops_raw).unwrap();
     DROPS.lock().unwrap().extend(drops);
 }
 
@@ -105,7 +113,9 @@ pub fn spawn_weighted_monster(ecs: &mut World, floor_index: u32, room: &Rect) {
     };
 
     for monster in MONSTERS.lock().unwrap().iter() {
-        if monster.name != spawn { continue; }
+        if monster.name != spawn {
+            continue;
+        }
         let mut entity = ecs
             .create_entity()
             .with(pos)
@@ -115,7 +125,7 @@ pub fn spawn_weighted_monster(ecs: &mut World, floor_index: u32, room: &Rect) {
             .with(Monster {
                 drop_type: monster.drop_type.clone(),
             });
-        
+
         match &monster.renderable {
             Some(renderable) => {
                 entity = entity.with(Renderable {
@@ -132,8 +142,8 @@ pub fn spawn_weighted_monster(ecs: &mut World, floor_index: u32, room: &Rect) {
                         .unwrap_or(Color::default()),
                     index: renderable.index,
                 })
-            },
-            None => {},
+            }
+            None => {}
         }
 
         match &monster.viewshed {
@@ -142,16 +152,25 @@ pub fn spawn_weighted_monster(ecs: &mut World, floor_index: u32, room: &Rect) {
                     range: viewshed.range,
                     visible_tiles: Vec::new(),
                 });
-            },
-            None => {},
+            }
+            None => {}
         }
 
         match &monster.stats {
             Some(stats) => {
                 entity = entity.with(Stats {
-                    hp: Pool { current: stats.hp.current, max: stats.hp.max },
-                    mp: Pool { current: stats.mp.current, max: stats.mp.max },
-                    exp: Pool { current: stats.exp.current, max: stats.exp.max },
+                    hp: Pool {
+                        current: stats.hp.current,
+                        max: stats.hp.max,
+                    },
+                    mp: Pool {
+                        current: stats.mp.current,
+                        max: stats.mp.max,
+                    },
+                    exp: Pool {
+                        current: stats.exp.current,
+                        max: stats.exp.max,
+                    },
                     level: stats.level,
                     strength: stats.strength,
                     dexterity: stats.dexterity,
@@ -160,8 +179,8 @@ pub fn spawn_weighted_monster(ecs: &mut World, floor_index: u32, room: &Rect) {
                     wisdom: stats.wisdom,
                     charisma: stats.charisma,
                 });
-            },
-            None => {},
+            }
+            None => {}
         }
 
         entity.build();
@@ -174,12 +193,22 @@ pub fn spawn_weighted_monster(ecs: &mut World, floor_index: u32, room: &Rect) {
 pub fn spawn_weighted_drop(ecs: &mut World, drop_type: DropType, pos: Position) {
     let mut rng = ecs.fetch_mut::<RandomNumberGenerator>();
     let mut drop_spawn_table = RandomTable::new();
-    if let Some(drop) = DROPS.lock().unwrap().iter().find(|drop| drop.drop_type == drop_type) {
+    if let Some(drop) = DROPS
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|drop| drop.drop_type == drop_type)
+    {
         for drop_choice in drop.drops.iter() {
             drop_spawn_table.push(drop_choice.name.clone(), drop_choice.weight);
         }
         let selected_item = drop_spawn_table.roll(&mut rng);
-        if let Some(item) = ITEMS.lock().unwrap().iter().find(|item| item.name == selected_item) {
+        if let Some(item) = ITEMS
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|item| item.name == selected_item)
+        {
             let mut entity = ecs.create_entity_unchecked();
             entity = spawn_item(entity, Some(pos), item);
             entity.build();
@@ -187,7 +216,11 @@ pub fn spawn_weighted_drop(ecs: &mut World, drop_type: DropType, pos: Position) 
     }
 }
 
-pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Option<Position>, item: &ItemConfig) -> EntityBuilder<'a> {
+pub fn spawn_item<'a>(
+    mut entity: EntityBuilder<'a>,
+    pos: Option<Position>,
+    item: &ItemConfig,
+) -> EntityBuilder<'a> {
     entity = entity
         .with(Name {
             name: item.name.clone(),
@@ -196,7 +229,7 @@ pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Option<Position>, item
             description: item.description.clone(),
             base_value: item.base_value,
         });
-    
+
     if pos.is_some() {
         entity = entity.with(pos.unwrap());
     }
@@ -256,7 +289,7 @@ pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Option<Position>, item
                 range: ranged_weapon.range,
                 target: None,
             });
-        },
+        }
         None => {}
     }
 
@@ -266,22 +299,25 @@ pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Option<Position>, item
                 range: 12,
                 target: None,
             });
-        },
+        }
         None => {}
     }
 
     match &item.spells {
         Some(spells) => {
             entity = entity.with(SpellKnowledge {
-                spells: spells.iter().map(|s| Spell {
-                    name: s.name.clone(),
-                    mp_cost: s.mp_cost,
-                    damage: parse_dice_expression(&s.damage),
-                    damage_type: s.damage_type,
-                    range: s.range
-                }).collect()
+                spells: spells
+                    .iter()
+                    .map(|s| Spell {
+                        name: s.name.clone(),
+                        mp_cost: s.mp_cost,
+                        damage: parse_dice_expression(&s.damage),
+                        damage_type: s.damage_type,
+                        range: s.range,
+                    })
+                    .collect(),
             });
-        },
+        }
         None => {}
     }
 
@@ -313,11 +349,9 @@ pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Option<Position>, item
     }
 
     match &item.scroll {
-        Some(scroll) => {
-            match scroll.scroll_type {
-                ScrollType::MagicMapper => {
-                    entity = entity.with(MagicMapper {});
-                }
+        Some(scroll) => match scroll.scroll_type {
+            ScrollType::MagicMapper => {
+                entity = entity.with(MagicMapper {});
             }
         },
         None => {}
@@ -326,7 +360,11 @@ pub fn spawn_item<'a>(mut entity: EntityBuilder<'a>, pos: Option<Position>, item
 }
 
 pub fn spawn_npc_merchant(ecs: &mut World, x: i32, y: i32) -> Entity {
-    let health_potion = spawn_named_item(ecs, None, "Potion of pathetically minor healing".to_string());
+    let health_potion = spawn_named_item(
+        ecs,
+        None,
+        "Potion of pathetically minor healing".to_string(),
+    );
     let mana_potion = spawn_named_item(ecs, None, "Potion of pathetically minor mana".to_string());
     let steel_shield = spawn_named_item(ecs, None, "Steel Shield".to_string());
     let steel_chestplate = spawn_named_item(ecs, None, "Steel Chestplate".to_string());
@@ -342,12 +380,23 @@ pub fn spawn_npc_merchant(ecs: &mut World, x: i32, y: i32) -> Entity {
             fg: color_from_hex("#EE82EE").expect("Unable to parse npc hex color"),
             index: 1,
         })
-        .with(Name { name: "Merchant".to_string() })
+        .with(Name {
+            name: "Merchant".to_string(),
+        })
         .with(BlocksTile {})
         .with(Stats {
-            hp: Pool { current: 10, max: 10 },
-            mp: Pool { current: 10, max: 10 },
-            exp: Pool { current: 0, max: 100 },
+            hp: Pool {
+                current: 10,
+                max: 10,
+            },
+            mp: Pool {
+                current: 10,
+                max: 10,
+            },
+            exp: Pool {
+                current: 0,
+                max: 100,
+            },
             level: 10,
             strength: 10,
             dexterity: 10,
@@ -361,9 +410,7 @@ pub fn spawn_npc_merchant(ecs: &mut World, x: i32, y: i32) -> Entity {
             items: IndexMap::new(),
             index: 0,
         })
-        .with(Npc {
-            dialogue: None,
-        })
+        .with(Npc { dialogue: None })
         .with(Vendor {
             items: vec![
                 health_potion,
@@ -373,7 +420,7 @@ pub fn spawn_npc_merchant(ecs: &mut World, x: i32, y: i32) -> Entity {
                 steel_gauntlets,
                 steel_chausses,
                 steel_boots,
-            ]
+            ],
         })
         .build();
 }
@@ -471,9 +518,7 @@ pub fn spawn_player(ecs: &mut World, x: i32, y: i32) -> Entity {
             items: IndexMap::new(),
             index: 0,
         })
-        .with(SpellKnowledge {
-            spells: vec![],
-        })
+        .with(SpellKnowledge { spells: vec![] })
         .build();
 }
 
