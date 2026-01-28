@@ -94,7 +94,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
                                         ranged_weapon.damage.dice_sides,
                                     ) + ranged_weapon.damage.modifier;
                                     weapon_name = name.name.clone();
-                                    ranged_weapon.damage_type;
+                                    damage_type = ranged_weapon.damage_type;
                                 }
                             }
                         }
