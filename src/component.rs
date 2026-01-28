@@ -19,6 +19,7 @@ pub enum EquipmentSlot {
     Hands,
     Legs,
     Feet,
+    Ring,
 }
 
 #[derive(PartialEq, Copy, Clone, Debug, Deserialize)]
@@ -64,6 +65,7 @@ pub struct Player {}
 
 #[derive(Component, Debug)]
 pub struct Monster {
+    pub description: String,
     pub drop_type: Option<DropType>
 }
 
@@ -135,11 +137,13 @@ pub struct Equipped {
 #[derive(Component, Debug)]
 pub struct MeleeWeapon {
     pub damage: DiceExpression,
+    pub damage_type: DamageType,
 }
 
 #[derive(Component, Debug)]
 pub struct RangedWeapon {
     pub damage: DiceExpression,
+    pub damage_type: DamageType,
     pub range: i32,
     pub target: Option<Entity>,
 }
@@ -161,7 +165,6 @@ pub struct Spell {
     pub mp_cost: i32,
     pub damage: DiceExpression,
     pub damage_type: DamageType,
-    pub range: i32,
 }
 
 #[derive(Component, Debug)]

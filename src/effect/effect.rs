@@ -10,12 +10,12 @@ lazy_static! {
 }
 
 pub enum EffectType {
-    LevelUp { level: i32 },
+    LevelUp { _level: i32 },
 }
 
 pub struct Effect {
     pub effect_type: EffectType,
-    pub creator: Option<Entity>,
+    pub _creator: Option<Entity>,
 }
 
 pub fn create_effect(effect: Effect) {
@@ -35,7 +35,8 @@ pub fn process_effects(app: &mut App) {
                      * To handle this, we need to go outside of the ecs so that we can
                      * modify core `App` fields. This lets us force a screen/state change.
                      */
-                    EffectType::LevelUp { level: _ } => {
+                    EffectType::LevelUp { _level: _ } => {
+
                         app.screen = Screen::Inventory;
                         app.runstate = RunState::LevelUp { index: 0 };
                     }

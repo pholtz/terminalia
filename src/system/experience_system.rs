@@ -28,8 +28,8 @@ impl<'a> System<'a> for ExperienceSystem {
                 };
                 stat.level += 1;
                 create_effect(Effect {
-                    creator: Some(entity),
-                    effect_type: EffectType::LevelUp { level: stat.level },
+                    _creator: Some(entity),
+                    effect_type: EffectType::LevelUp { _level: stat.level },
                 });
 
                 // Upgrade max hp and mp based on attributes

@@ -71,7 +71,9 @@ pub fn spawn_weighted_item(ecs: &mut World, floor_index: u32, room: &Rect) {
         for item in ITEMS.lock().unwrap().iter() {
             match &item.spawn {
                 Some(spawn) => {
-                    item_spawn_table.push(item.name.clone(), spawn.base_weight);
+                    if floor_index >= spawn.min_floor as u32 {
+                        item_spawn_table.push(item.name.clone(), spawn.base_weight);
+                    }
                 }
                 None => {}
             };
@@ -104,7 +106,9 @@ pub fn spawn_weighted_monster(ecs: &mut World, floor_index: u32, room: &Rect) {
         for monster in MONSTERS.lock().unwrap().iter() {
             match &monster.spawn {
                 Some(spawn) => {
-                    monster_spawn_table.push(monster.name.clone(), spawn.base_weight);
+                    if floor_index >= spawn.min_floor as u32 {
+                        monster_spawn_table.push(monster.name.clone(), spawn.base_weight);
+                    }
                 }
                 None => {}
             };
@@ -123,6 +127,7 @@ pub fn spawn_weighted_monster(ecs: &mut World, floor_index: u32, room: &Rect) {
                 name: monster.name.clone(),
             })
             .with(Monster {
+                description: monster.description.clone(),
                 drop_type: monster.drop_type.clone(),
             });
 
@@ -277,6 +282,7 @@ pub fn spawn_item<'a>(
         Some(melee_weapon) => {
             entity = entity.with(MeleeWeapon {
                 damage: parse_dice_expression(&melee_weapon.damage),
+                damage_type: melee_weapon.damage_type,
             });
         }
         None => {}
@@ -287,6 +293,7 @@ pub fn spawn_item<'a>(
             entity = entity.with(RangedWeapon {
                 damage: parse_dice_expression(&ranged_weapon.damage),
                 range: ranged_weapon.range,
+                damage_type: ranged_weapon.damage_type,
                 target: None,
             });
         }
@@ -294,9 +301,9 @@ pub fn spawn_item<'a>(
     }
 
     match &item.magic_weapon {
-        Some(_magic_weapon) => {
+        Some(magic_weapon) => {
             entity = entity.with(MagicWeapon {
-                range: 12,
+                range: magic_weapon.range,
                 target: None,
             });
         }
@@ -313,7 +320,6 @@ pub fn spawn_item<'a>(
                         mp_cost: s.mp_cost,
                         damage: parse_dice_expression(&s.damage),
                         damage_type: s.damage_type,
-                        range: s.range,
                     })
                     .collect(),
             });

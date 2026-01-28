@@ -123,7 +123,7 @@ impl Map {
     }
 
     /// Procedurally creates a new map instance of oakwood, the starting village.
-    pub fn new_map_oakwood(rng: &mut RandomNumberGenerator, options: MapOptions) -> Map {
+    pub fn new_map_oakwood(_rng: &mut RandomNumberGenerator, options: MapOptions) -> Map {
         let width: usize = options.width as usize;
         let height: usize = options.height as usize;
 
@@ -285,7 +285,7 @@ impl Algorithm2D for Map {
     }
 }
 
-pub fn fn_xy_idx(width: usize, x: i32, y: i32) -> usize {
+pub fn _fn_xy_idx(width: usize, x: i32, y: i32) -> usize {
     (y as usize * width) + x as usize
 }
 

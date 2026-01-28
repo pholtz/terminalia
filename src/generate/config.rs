@@ -97,11 +97,14 @@ pub struct MeleeWeaponConfig {
 #[derive(Deserialize)]
 pub struct RangedWeaponConfig {
     pub damage: String,
+    pub damage_type: DamageType,
     pub range: i32
 }
 
 #[derive(Deserialize)]
-pub struct MagicWeaponConfig {}
+pub struct MagicWeaponConfig {
+    pub range: i32,
+}
 
 #[derive(Deserialize)]
 pub struct SpellConfig {
@@ -109,7 +112,6 @@ pub struct SpellConfig {
     pub mp_cost: i32,
     pub damage: String,
     pub damage_type: DamageType,
-    pub range: i32,
 }
 
 #[derive(Deserialize)]

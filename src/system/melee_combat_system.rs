@@ -7,7 +7,7 @@ use specs::prelude::*;
 use crate::{
     Attack, Damage, Name, Stats,
     component::{
-        Armor, AttackType, Equipped, Lifetime, MeleeWeapon, Position, RangedWeapon, Renderable,
+        Armor, AttackType, DamageType, Equipped, Lifetime, MeleeWeapon, Position, RangedWeapon, Renderable
     },
     logbook::logbook::Logger,
 };
@@ -72,6 +72,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
                 if target_stats.hp.current > 0 {
                     let mut weapon_damage: i32 = 1;
                     let mut weapon_name: String = "fisticuffs".to_string();
+                    let mut damage_type: DamageType = DamageType::Bludgeoning;
                     match attack.attack_type {
                         AttackType::Melee => {
                             for (equipped, melee_weapon, name) in (&equipment, &melee_weapons, &names).join() {
@@ -81,6 +82,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
                                         melee_weapon.damage.dice_sides,
                                     ) + melee_weapon.damage.modifier;
                                     weapon_name = name.name.clone();
+                                    damage_type = melee_weapon.damage_type;
                                 }
                             }
                         }
@@ -92,6 +94,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
                                         ranged_weapon.damage.dice_sides,
                                     ) + ranged_weapon.damage.modifier;
                                     weapon_name = name.name.clone();
+                                    ranged_weapon.damage_type;
                                 }
                             }
                         }
@@ -103,6 +106,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
                                         spell.damage.dice_sides
                                     ) + spell.damage.modifier;
                                     weapon_name = spell.name.clone();
+                                    damage_type = spell.damage_type;
                                     mana_burndown.push((attacker_entity, spell.mp_cost));
                                 } else {
                                     Logger::new()
@@ -142,8 +146,8 @@ impl<'a> System<'a> for MeleeCombatSystem {
                     }
                     Logger::new()
                         .append(format!(
-                            "{} hits {} with {}, inflicting {} damage",
-                            &name.name, &target_name.name, weapon_name, damage_inflicted
+                            "{} hits {} with {}, inflicting {} {:?} damage",
+                            &name.name, &target_name.name, weapon_name, damage_inflicted, damage_type,
                         ))
                         .log();
                     Damage::new_damage(

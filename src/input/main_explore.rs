@@ -82,8 +82,8 @@ pub fn handle_main_explore_key_event(
             app.screen = Screen::Inventory;
             return None;
         }
-        KeyCode::Char('.') => try_next_level(&mut app.ecs),
-        KeyCode::Char(',') => try_prev_level(&mut app.ecs),
+        KeyCode::Char('.') => try_next_level(&mut app.ecs, true),
+        KeyCode::Char(',') => try_next_level(&mut app.ecs, false),
 
         /*
          * Cheats
@@ -109,6 +109,9 @@ pub fn handle_main_explore_key_event(
     }
 }
 
+///
+/// E X A M I N E
+/// 
 fn try_move_examine(app: &mut App, delta_x: i32, delta_y: i32) -> Option<RunState> {
     match app.runstate {
         RunState::Examining { index } => {
@@ -124,37 +127,9 @@ fn try_move_examine(app: &mut App, delta_x: i32, delta_y: i32) -> Option<RunStat
     }
 }
 
-fn try_move_free_aim(app: &mut App, delta_x: i32, delta_y: i32) -> Option<RunState> {
-    match app.runstate {
-        RunState::FreeAiming { index } => {
-            let map = app.ecs.fetch::<Map>();
-            let player_pos = app.ecs.fetch::<Point>();
-            let player_entity = app.ecs.fetch::<Entity>();
-            let entities = app.ecs.entities();
-            let equipped = app.ecs.read_storage::<Equipped>();
-            let ranged_weapons = app.ecs.read_storage::<RangedWeapon>();
-            let magic_weapons = app.ecs.read_storage::<MagicWeapon>();
-            let ranged_mask = ranged_weapons.mask() | magic_weapons.mask();
-
-            for (entity, equipped, _) in (&entities, &equipped, &ranged_mask).join() {
-                let ranged = ranged_weapons.get(entity);
-                let magic = magic_weapons.get(entity);
-                let range = ranged.map(|r| r.range).unwrap_or_else(|| magic.map(|m| m.range).unwrap_or(0));
-                if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
-                    let (x, y) = map.idx_xy(index);
-                    let target_index = map.xy_idx(x + delta_x, y + delta_y);
-                    let eligible_tiles = get_eligible_ranged_tiles(&map, &player_pos, range);
-                    if eligible_tiles.contains(&target_index) {
-                        return Some(RunState::FreeAiming { index: target_index });
-                    }
-                }
-            }
-            return None;
-        },
-        _ => None,
-    }
-}
-
+/// 
+/// M O V E M E N T
+/// 
 fn try_move_player(delta_x: i32, delta_y: i32, app: &mut App) -> Option<RunState> {
     let entities = app.ecs.entities();
     let mut positions = app.ecs.write_storage::<Position>();
@@ -216,6 +191,34 @@ fn try_move_player(delta_x: i32, delta_y: i32, app: &mut App) -> Option<RunState
     return Some(RunState::PlayerTurn);
 }
 
+///
+/// D E S C E N D  /  A S C E N D
+/// 
+fn try_next_level(ecs: &mut World, is_descending: bool) -> Option<RunState> {
+    let mut runstate = ecs.write_resource::<RunState>();
+    let map = ecs.read_resource::<Map>();
+    let player_position = ecs.read_resource::<Point>();
+    let player_index = map.xy_idx(player_position.x, player_position.y);
+    match is_descending {
+        true => {
+            if map.tiles[player_index] == TileType::DownStairs {
+                *runstate = RunState::Descending;
+                return Some(RunState::Descending);
+            }
+        }
+        false => {
+            if map.tiles[player_index] == TileType::UpStairs {
+                *runstate = RunState::Ascending;
+                return Some(RunState::Ascending);
+            }
+        }
+    }
+    return None;
+}
+
+///
+/// I T E M  P I C K U P
+/// 
 fn try_get_item(ecs: &mut World) -> Option<RunState> {
     let player_pos = ecs.fetch::<Point>();
     let player_entity = ecs.fetch::<Entity>();
@@ -250,30 +253,9 @@ fn try_get_item(ecs: &mut World) -> Option<RunState> {
     return Some(RunState::PlayerTurn);
 }
 
-fn try_next_level(ecs: &mut World) -> Option<RunState> {
-    let mut runstate = ecs.write_resource::<RunState>();
-    let map = ecs.read_resource::<Map>();
-    let player_position = ecs.read_resource::<Point>();
-    let player_index = map.xy_idx(player_position.x, player_position.y);
-    if map.tiles[player_index] == TileType::DownStairs {
-        *runstate = RunState::Descending;
-        return Some(RunState::Descending);
-    }
-    return None;
-}
-
-fn try_prev_level(ecs: &mut World) -> Option<RunState> {
-    let mut runstate = ecs.write_resource::<RunState>();
-    let map = ecs.read_resource::<Map>();
-    let player_position = ecs.read_resource::<Point>();
-    let player_index = map.xy_idx(player_position.x, player_position.y);
-    if map.tiles[player_index] == TileType::UpStairs {
-        *runstate = RunState::Ascending;
-        return Some(RunState::Ascending);
-    }
-    return None;
-}
-
+///
+/// T A R G E T I N G
+/// 
 fn try_cycle_targeting(ecs: &mut World) -> Option<RunState> {
     let entities = ecs.entities();
     let map = ecs.fetch::<Map>();
@@ -400,6 +382,9 @@ fn try_cycle_targeting(ecs: &mut World) -> Option<RunState> {
     return None;
 }
 
+///
+/// E N T E R  F R E E  A I M
+/// 
 fn try_free_aim(app: &mut App) -> Option<RunState> {
     let map = app.ecs.fetch::<Map>();
     let player_pos = app.ecs.fetch::<Point>();
@@ -419,6 +404,40 @@ fn try_free_aim(app: &mut App) -> Option<RunState> {
         }
     }
     return None;
+}
+
+///
+/// F R E E  A I M
+/// 
+fn try_move_free_aim(app: &mut App, delta_x: i32, delta_y: i32) -> Option<RunState> {
+    match app.runstate {
+        RunState::FreeAiming { index } => {
+            let map = app.ecs.fetch::<Map>();
+            let player_pos = app.ecs.fetch::<Point>();
+            let player_entity = app.ecs.fetch::<Entity>();
+            let entities = app.ecs.entities();
+            let equipped = app.ecs.read_storage::<Equipped>();
+            let ranged_weapons = app.ecs.read_storage::<RangedWeapon>();
+            let magic_weapons = app.ecs.read_storage::<MagicWeapon>();
+            let ranged_mask = ranged_weapons.mask() | magic_weapons.mask();
+
+            for (entity, equipped, _) in (&entities, &equipped, &ranged_mask).join() {
+                let ranged = ranged_weapons.get(entity);
+                let magic = magic_weapons.get(entity);
+                let range = ranged.map(|r| r.range).unwrap_or_else(|| magic.map(|m| m.range).unwrap_or(0));
+                if equipped.slot == EquipmentSlot::Weapon && equipped.owner == *player_entity {
+                    let (x, y) = map.idx_xy(index);
+                    let target_index = map.xy_idx(x + delta_x, y + delta_y);
+                    let eligible_tiles = get_eligible_ranged_tiles(&map, &player_pos, range);
+                    if eligible_tiles.contains(&target_index) {
+                        return Some(RunState::FreeAiming { index: target_index });
+                    }
+                }
+            }
+            return None;
+        },
+        _ => None,
+    }
 }
 
 /// Attacks the currently selected ranged target with the currently equipped
@@ -498,6 +517,9 @@ fn try_ranged_target(app: &mut App) -> Option<RunState> {
     return None;
 }
 
+///
+/// M A G I C  A T T A C K
+/// 
 fn try_magic_target(app: &mut App) -> Option<RunState> {
     let map = app.ecs.fetch::<Map>();
     let player_entity = app.ecs.fetch::<Entity>();

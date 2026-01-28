@@ -10,7 +10,7 @@ use specs::prelude::*;
 
 use crate::{
     RunState, component::{
-        EquipmentSlot, Equipped, Hidden, Inventory, Item, MagicWeapon, Name, Npc, Pool, Position, RangedWeapon, Renderable, Stats
+        EquipmentSlot, Equipped, Hidden, Inventory, Item, MagicWeapon, Monster, Name, Npc, Pool, Position, RangedWeapon, Renderable, Stats
     }, generate::map::{Map, TileType}, logbook::logbook::format_latest_text, render::base::centered_rect, system::ranged_combat_system::get_eligible_ranged_tiles
 };
 
@@ -42,6 +42,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
     let inventory = ecs.read_storage::<Inventory>();
     let names = ecs.read_storage::<Name>();
     let items = ecs.read_storage::<Item>();
+    let monsters = ecs.read_storage::<Monster>();
     let ranged_weapons = ecs.read_storage::<RangedWeapon>();
     let magic_weapons = ecs.read_storage::<MagicWeapon>();
     let equipped = ecs.read_storage::<Equipped>();
@@ -254,6 +255,7 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                 for entity in map.tile_content.get(index).unwrap_or(&Vec::new()).iter() {
                     let name = names.get(*entity);
                     let item = items.get(*entity);
+                    let monster = monsters.get(*entity);
 
                     if let Some(name) = name {
                         if !serialized_examine.is_empty() {
@@ -267,6 +269,13 @@ pub fn render_game(ecs: &mut World, frame: &mut Frame, floor_index: u32, _termin
                             serialized_examine.push('\n');
                         }
                         serialized_examine.push_str(&item.description);
+                    }
+
+                    if let Some(monster) = monster {
+                        if !serialized_examine.is_empty() {
+                            serialized_examine.push('\n');
+                        }
+                        serialized_examine.push_str(&monster.description);
                     }
 
                     if name.is_some() || item.is_some() {

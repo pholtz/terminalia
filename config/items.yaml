@@ -123,7 +123,8 @@
   melee_weapon:
     damage: "1d4"
     damage_type: Bludgeoning
-  magic_weapon: {}
+  magic_weapon:
+    range: 12
 
 - name: Tome of Fire Magic
   description: "A dusty book bound in crimson leather. Exudes a slight heat."
@@ -140,7 +141,6 @@
       mp_cost: 4
       damage: "2d6+2"
       damage_type: Fire
-      range: 12
 
 - name: Battered Shield
   description: "A medium-sized, circular shielf with some sizeable dents. Seems well made, though."
