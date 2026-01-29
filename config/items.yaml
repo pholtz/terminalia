@@ -142,6 +142,19 @@
       damage: "2d6+2"
       damage_type: Fire
 
+- name: Magic Ring
+  description: "A small silver ring set with a sleek, light blue stone."
+  base_value: 500
+  renderable:
+    glyph: "o"
+    fg: "#DDDDDD"
+    index: 2
+  spawn: 
+    min_floor: 0
+    base_weight: 100
+  equippable:
+    slot: Ring
+
 - name: Battered Shield
   description: "A medium-sized, circular shielf with some sizeable dents. Seems well made, though."
   base_value: 30
