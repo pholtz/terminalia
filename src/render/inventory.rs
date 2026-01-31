@@ -248,7 +248,7 @@ pub fn format_inventory_item<'a>(
             Style::new().fg(Color::Green)
         ),
         Span::styled(format!("[{} gold] ", base_value), Style::default().fg(Color::Yellow)),
-        Span::styled(name, Style::default()),
+        Span::styled(name, Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD)),
         Span::styled(format!(" x {}", count), Style::default()),
     ]);
 

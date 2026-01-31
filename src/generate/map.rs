@@ -33,6 +33,7 @@ impl TileType {
 }
 
 pub struct MapOptions {
+    pub index: u32,
     pub width: i32,
     pub height: i32,
     pub has_upstairs: bool,
@@ -40,7 +41,9 @@ pub struct MapOptions {
     pub has_debris: bool,
 }
 
+#[derive(Default, Clone)]
 pub struct Map {
+    pub index: u32,
     pub tiles: Vec<TileType>,
     pub tile_content: Vec<Vec<Entity>>,
     pub revealed_tiles: Vec<bool>,
@@ -128,6 +131,7 @@ impl Map {
         let height: usize = options.height as usize;
 
         let mut map = Map {
+            index: 0,
             tiles: vec![TileType::Floor; (width as usize) * (height as usize)],
             tile_content: vec![Vec::new(); (width as usize) * (height as usize)],
             revealed_tiles: vec![false; (width as usize) * (height as usize)],
@@ -176,6 +180,7 @@ impl Map {
         let height: usize = options.height as usize;
 
         let mut map = Map {
+            index: options.index,
             tiles: vec![TileType::Wall; (width as usize) * (height as usize)],
             tile_content: vec![Vec::new(); (width as usize) * (height as usize)],
             revealed_tiles: vec![false; (width as usize) * (height as usize)],

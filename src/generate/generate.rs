@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use crate::{
-    Player, Position, RunState, component::InBackpack, generate::{
+    Player, Position, RunState, component::{InBackpack, OtherLevelPosition}, generate::{
         map::{Map, MapOptions}, spawn::{spawn_npc_captain, spawn_npc_merchant, spawn_player, spawn_weighted_item, spawn_weighted_monster}
     }
 };
@@ -36,8 +36,52 @@ pub fn reset_floor(world: &mut World) {
     let _ = world.delete_entities(&to_delete);
 }
 
+pub fn freeze_floor(index: u32, world: &mut World) {
+    let entities = world.entities();
+    let mut positions = world.write_storage::<Position>();
+    let mut other_level_positions = world.write_storage::<OtherLevelPosition>();
+    let player_entity = world.fetch::<Entity>();
+
+    let mut to_delete: Vec<Entity> = Vec::new();
+    for (entity, position) in (&entities, &positions).join() {
+        if entity == *player_entity { continue; }
+        other_level_positions.insert(entity, OtherLevelPosition {
+            index: index,
+            x: position.x,
+            y: position.y,
+        }).expect("Unable to insert OtherLevelPosition");
+        to_delete.push(entity);
+    }
+
+    for delete in to_delete.iter() {
+        positions.remove(*delete);
+    }
+}
+
+pub fn thaw_floor(index: u32, world: &mut World) {
+    let entities = world.entities();
+    let mut positions = world.write_storage::<Position>();
+    let mut other_level_positions = world.write_storage::<OtherLevelPosition>();
+    let player_entity = world.fetch::<Entity>();
+
+    let mut to_delete: Vec<Entity> = Vec::new();
+    for (entity, position) in (&entities, &positions).join() {
+        if entity == *player_entity { continue; }
+        other_level_positions.insert(entity, OtherLevelPosition {
+            index: index,
+            x: position.x,
+            y: position.y,
+        }).expect("Unable to insert OtherLevelPosition");
+        to_delete.push(entity);
+    }
+
+    for delete in to_delete.iter() {
+        positions.remove(*delete);
+    }
+}
+
 /// Creates a very simple map and populates it with some very simple monsters.
-pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
+pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) -> Map {
     let mut rng = RandomNumberGenerator::seeded(seed + (floor_index as u64));
     if let Some(existing_rng) = world.try_fetch::<RandomNumberGenerator>() {
         rng = existing_rng.deref().clone();
@@ -48,6 +92,7 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
     let map = match floor_index {
         0 => {
             let map = Map::new_map_oakwood(&mut rng, MapOptions {
+                index: floor_index,
                 width: 80,
                 height: 40,
                 has_upstairs: false,
@@ -60,6 +105,7 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
         }
         _ => {
             let map = Map::new_map_dynamic_rooms_and_corridors(&mut rng, MapOptions {
+                index: floor_index,
                 width: 100,
                 height: 100,
                 has_upstairs: floor_index != 0,
@@ -73,6 +119,7 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
             map
         }
     };
+    let map_copy = map.clone();
 
     let (player_x, player_y) = map.idx_xy(map.player_spawn_index.expect("No player spawn index"));
 
@@ -97,4 +144,6 @@ pub fn generate_floor(seed: u64, floor_index: u32, world: &mut World) {
         let player = spawn_player(world, player_x, player_y);
         world.insert(player);
     }
+
+    return map_copy;
 }

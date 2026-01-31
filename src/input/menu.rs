@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use rand::Rng;
 
-use crate::{App, RootScreen, RunState, Screen, generate::generate::generate_floor, logbook::{logbook::{self, Logger}}, reinitialize_world};
+use crate::{App, RootScreen, RunState, Screen, generate::{dungeon::Dungeon, generate::generate_floor}, logbook::logbook::{self, Logger}, reinitialize_world};
 
 pub fn handle_menu_key_event(app: &mut App, key_event: KeyEvent) -> Option<RunState> {
     match key_event.code {
@@ -23,7 +23,7 @@ pub fn handle_menu_key_event(app: &mut App, key_event: KeyEvent) -> Option<RunSt
         KeyCode::Enter => match app.menu_index {
             0 => {
                 app.ecs = reinitialize_world();
-                generate_floor(rand::rng().random(), 0, &mut app.ecs);
+                app.dungeon.add_map(&generate_floor(rand::rng().random(), 0, &mut app.ecs));
                 app.root_screen = RootScreen::Main;
                 app.screen = Screen::Explore;
                 logbook::clear();

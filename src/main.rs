@@ -3,7 +3,7 @@ use std::{fs::File, io, time::Duration};
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use log::LevelFilter;
-use rand::Rng;
+use rand::{Rng};
 use ratatui::{DefaultTerminal, Frame, layout::Size};
 use simplelog::{CombinedLogger, Config, WriteLogger};
 use specs::prelude::*;
@@ -27,13 +27,12 @@ use system::{
 
 use crate::{
     component::{
-        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack, Inventory, Item, Lifetime, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Npc, Player, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Vendor, Viewshed, WantsToConsumeItem, WantsToPickupItem
+        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack, Inventory, Item, Lifetime, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Npc, OtherLevelPosition, Player, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Vendor, Viewshed, WantsToConsumeItem, WantsToPickupItem
     },
     damage_system::DamageSystem,
     effect::effect::process_effects,
     generate::{
-        generate::{generate_floor, reset_floor},
-        spawn::initialize_config,
+        dungeon::Dungeon, generate::{freeze_floor, generate_floor, thaw_floor}, spawn::initialize_config
     },
     input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
@@ -111,6 +110,7 @@ pub enum RunState {
 pub struct App {
     pub ecs: World,
     pub dispatcher: Dispatcher<'static, 'static>,
+    pub dungeon: Dungeon,
     root_screen: RootScreen,
     screen: Screen,
     runstate: RunState,
@@ -157,15 +157,41 @@ impl App {
                         RunState::PlayerTurn => next_runstate = RunState::MonsterTurn,
                         RunState::MonsterTurn => next_runstate = RunState::AwaitingInput,
                         RunState::Descending => {
-                            self.floor_index += 1;
-                            reset_floor(&mut self.ecs);
-                            generate_floor(rand::rng().random(), self.floor_index, &mut self.ecs);
+                            let next_index = self.floor_index + 1;
+                            let existing_map = self.dungeon.get_map(next_index);
+                            freeze_floor(self.floor_index, &mut self.ecs);
+                            let map = match existing_map {
+                                Some(map) => {
+                                    thaw_floor(next_index, &mut self.ecs);
+                                    map
+                                }
+                                None => {
+                                    let new_map = generate_floor(rand::rng().random(), next_index as u32, &mut self.ecs);
+                                    self.dungeon.add_map(&new_map);                                    
+                                    new_map
+                                }
+                            };
+                            self.ecs.insert(map);
+                            self.floor_index = next_index;
                             next_runstate = RunState::AwaitingInput;
                         }
                         RunState::Ascending => {
-                            self.floor_index -= 1;
-                            reset_floor(&mut self.ecs);
-                            generate_floor(rand::rng().random(), self.floor_index, &mut self.ecs);
+                            let next_index = self.floor_index - 1;
+                            let existing_map = self.dungeon.get_map(next_index);
+                            freeze_floor(self.floor_index, &mut self.ecs);
+                            let map = match existing_map {
+                                Some(map) => {
+                                    thaw_floor(next_index, &mut self.ecs);
+                                    map
+                                }
+                                None => {
+                                    let new_map = generate_floor(rand::rng().random(), next_index as u32, &mut self.ecs);
+                                    self.dungeon.add_map(&new_map);
+                                    new_map
+                                }
+                            };
+                            self.ecs.insert(map);
+                            self.floor_index = next_index;
                             next_runstate = RunState::AwaitingInput;
                         }
                     }
@@ -268,6 +294,7 @@ impl App {
 fn reinitialize_world() -> World {
     let mut world = World::new();
     world.register::<Position>();
+    world.register::<OtherLevelPosition>();
     world.register::<Renderable>();
     world.register::<Player>();
     world.register::<Monster>();
@@ -359,6 +386,7 @@ fn main() -> Result<()> {
     let app_result = App {
         ecs: world,
         dispatcher: dispatcher,
+        dungeon: Dungeon::new(),
         root_screen: RootScreen::Menu,
         screen: Screen::Explore,
         runstate: RunState::AwaitingInput,

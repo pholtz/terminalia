@@ -52,6 +52,13 @@ pub struct Position {
     pub y: i32,
 }
 
+#[derive(Component, Clone, Copy)]
+pub struct OtherLevelPosition {
+    pub index: u32,
+    pub x: i32,
+    pub y: i32,
+}
+
 #[derive(Component)]
 pub struct Renderable {
     pub glyph: char,
