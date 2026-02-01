@@ -1,13 +1,18 @@
 use std::sync::atomic::Ordering;
 
-use rand::Rng;
 use ratatui::style::Color;
 use specs::prelude::*;
 
-use crossterm::{event::{KeyCode, KeyEvent}};
+use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::{
-    App, RunState, Screen, component::{Position, Stats, WantsToPickupItem}, generate::{generate::{generate_floor, reset_floor}, spawn::{ITEMS, spawn_item}}, logbook::logbook::{self, LOG_INDEX, Logger}
+    App, RunState, Screen,
+    component::{Position, Stats, WantsToPickupItem},
+    generate::{
+        generate::{switch_floor},
+        spawn::{ITEMS, spawn_item},
+    },
+    logbook::logbook::{self, LOG_INDEX, Logger},
 };
 
 pub fn handle_main_log_key_event(app: &mut App, key_event: KeyEvent) -> Option<RunState> {
@@ -89,7 +94,7 @@ pub fn handle_main_log_key_event(app: &mut App, key_event: KeyEvent) -> Option<R
 
 /*
  * Runs whenever the user inputs a system command into the logbook.
- * 
+ *
  * This is essentially a cheat menu that allows the user to modify
  * the existing gamestate somehow, either for the user's advantage
  * or just for testing purposes.
@@ -100,19 +105,21 @@ pub fn process_command(input: String, app: &mut App) {
         let mut stats = app.ecs.write_storage::<Stats>();
         if let Some(stat) = stats.get_mut(*player_entity) {
             stat.hp.current = stat.hp.max;
-            Logger::new().append_with_color(Color::Yellow, "You were healed!").log();
+            Logger::new()
+                .append_with_color(Color::Yellow, "You were healed!")
+                .log();
         }
     }
 
     if input == "/items" {
-        let player_entity = {
-            *app.ecs.fetch::<Entity>()
-        };
+        let player_entity = { *app.ecs.fetch::<Entity>() };
         let player_pos = {
             let positions = app.ecs.read_storage::<Position>();
-            *positions.get(player_entity).expect("Unable to access player position")
+            *positions
+                .get(player_entity)
+                .expect("Unable to access player position")
         };
-        
+
         let mut item_entities = Vec::new();
         for item in ITEMS.lock().unwrap().iter() {
             if item.triggerable.is_some() {
@@ -123,23 +130,30 @@ pub fn process_command(input: String, app: &mut App) {
         }
 
         let mut pickups = app.ecs.write_storage::<WantsToPickupItem>();
-        pickups.insert(
-            player_entity,
-            WantsToPickupItem { collected_by: player_entity, items: item_entities }
-        ).expect("Unable to spawn items via command");
+        pickups
+            .insert(
+                player_entity,
+                WantsToPickupItem {
+                    collected_by: player_entity,
+                    items: item_entities,
+                },
+            )
+            .expect("Unable to spawn items via command");
     }
 
     if input.starts_with("/floor") {
         let parts: Vec<&str> = input.split(' ').collect();
         match parts.get(1) {
             Some(floor) => {
-                let floor_index = floor.parse::<u32>().expect("Unable to parse /floor command input to floor");
-                app.floor_index = floor_index;
-                reset_floor(&mut app.ecs);
-                generate_floor(rand::rng().random(), floor_index, &mut app.ecs);
-                app.runstate = RunState::AwaitingInput;
+                let floor_index = floor
+                    .parse::<u32>()
+                    .expect("Unable to parse /floor command input to floor");
+                switch_floor(app, floor_index);
                 Logger::new()
-                    .append(format!("You disappear in a poof of smoke, reappearing suddenly at level {}", floor_index))
+                    .append(format!(
+                        "You disappear in a poof of smoke, reappearing suddenly at level {}",
+                        floor_index
+                    ))
                     .log();
             }
             None => {}

@@ -157,8 +157,8 @@ impl App {
                         RunState::Dialogue { npc: _ } => {}
                         RunState::PlayerTurn => next_runstate = RunState::MonsterTurn,
                         RunState::MonsterTurn => next_runstate = RunState::AwaitingInput,
-                        RunState::Descending => next_runstate = switch_floor(self, true),
-                        RunState::Ascending => next_runstate = switch_floor(self, false),
+                        RunState::Descending => next_runstate = switch_floor(self, self.floor_index + 1),
+                        RunState::Ascending => next_runstate = switch_floor(self, self.floor_index - 1),
                     }
 
                     /*
