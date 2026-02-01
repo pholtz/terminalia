@@ -3,7 +3,6 @@ use std::{fs::File, io, time::Duration};
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyEvent, KeyEventKind};
 use log::LevelFilter;
-use rand::{Rng};
 use ratatui::{DefaultTerminal, Frame, layout::Size};
 use simplelog::{CombinedLogger, Config, WriteLogger};
 use specs::prelude::*;
@@ -27,13 +26,15 @@ use system::{
 
 use crate::{
     component::{
-        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack, Inventory, Item, Lifetime, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Npc, OtherLevelPosition, Player, Position, Potion, RangedWeapon, Renderable, Spell, SpellKnowledge, Stats, Triggerable, Vendor, Viewshed, WantsToConsumeItem, WantsToPickupItem
+        Armor, Attack, BlocksTile, Damage, Equippable, Equipped, Experience, Hidden, InBackpack,
+        Inventory, Item, Lifetime, MagicMapper, MagicWeapon, MeleeWeapon, Monster, Name, Npc,
+        OtherLevelPosition, Player, Position, Potion, RangedWeapon, Renderable, Spell,
+        SpellKnowledge, Stats, Triggerable, Vendor, Viewshed, WantsToConsumeItem,
+        WantsToPickupItem,
     },
     damage_system::DamageSystem,
     effect::effect::process_effects,
-    generate::{
-        dungeon::Dungeon, generate::{freeze_floor, generate_floor, thaw_floor}, spawn::initialize_config
-    },
+    generate::{dungeon::Dungeon, generate::switch_floor, spawn::initialize_config},
     input::{
         game_over::handle_game_over_key_event, main_explore::handle_main_explore_key_event,
         main_inventory::handle_main_inventory_key_event, main_log::handle_main_log_key_event,
@@ -153,47 +154,11 @@ impl App {
                         RunState::Examining { index: _ } => {}
                         RunState::LevelUp { index: _ } => {}
                         RunState::FreeAiming { index: _ } => {}
-                        RunState::Dialogue { npc: _ } => {},
+                        RunState::Dialogue { npc: _ } => {}
                         RunState::PlayerTurn => next_runstate = RunState::MonsterTurn,
                         RunState::MonsterTurn => next_runstate = RunState::AwaitingInput,
-                        RunState::Descending => {
-                            let next_index = self.floor_index + 1;
-                            let existing_map = self.dungeon.get_map(next_index);
-                            freeze_floor(self.floor_index, &mut self.ecs);
-                            let map = match existing_map {
-                                Some(map) => {
-                                    thaw_floor(next_index, &mut self.ecs);
-                                    map
-                                }
-                                None => {
-                                    let new_map = generate_floor(rand::rng().random(), next_index as u32, &mut self.ecs);
-                                    self.dungeon.add_map(&new_map);                                    
-                                    new_map
-                                }
-                            };
-                            self.ecs.insert(map);
-                            self.floor_index = next_index;
-                            next_runstate = RunState::AwaitingInput;
-                        }
-                        RunState::Ascending => {
-                            let next_index = self.floor_index - 1;
-                            let existing_map = self.dungeon.get_map(next_index);
-                            freeze_floor(self.floor_index, &mut self.ecs);
-                            let map = match existing_map {
-                                Some(map) => {
-                                    thaw_floor(next_index, &mut self.ecs);
-                                    map
-                                }
-                                None => {
-                                    let new_map = generate_floor(rand::rng().random(), next_index as u32, &mut self.ecs);
-                                    self.dungeon.add_map(&new_map);
-                                    new_map
-                                }
-                            };
-                            self.ecs.insert(map);
-                            self.floor_index = next_index;
-                            next_runstate = RunState::AwaitingInput;
-                        }
+                        RunState::Descending => next_runstate = switch_floor(self, true),
+                        RunState::Ascending => next_runstate = switch_floor(self, false),
                     }
 
                     /*
@@ -257,7 +222,14 @@ impl App {
                     vendor_index,
                     player_index,
                     is_buying,
-                } => handle_main_trading_key_event(self, key_event, vendor, vendor_index, player_index, is_buying),
+                } => handle_main_trading_key_event(
+                    self,
+                    key_event,
+                    vendor,
+                    vendor_index,
+                    player_index,
+                    is_buying,
+                ),
                 Screen::Quit { quit } => handle_main_quit_key_event(self, quit, key_event),
             },
             RootScreen::GameOver => handle_game_over_key_event(self, key_event),
@@ -277,9 +249,19 @@ impl App {
                 }
                 Screen::Log => render_log(self, frame),
                 Screen::Inventory => render_inventory(&mut self.ecs, self.runstate, frame),
-                Screen::Trading { vendor, vendor_index, player_index, is_buying } => {
-                    render_trading(&mut self.ecs, frame, vendor, vendor_index, player_index, is_buying)
-                }
+                Screen::Trading {
+                    vendor,
+                    vendor_index,
+                    player_index,
+                    is_buying,
+                } => render_trading(
+                    &mut self.ecs,
+                    frame,
+                    vendor,
+                    vendor_index,
+                    player_index,
+                    is_buying,
+                ),
                 Screen::Quit { quit } => render_quit(&mut self.ecs, quit, frame),
             },
             RootScreen::GameOver => render_game_over(frame),

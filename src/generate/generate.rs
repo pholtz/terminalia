@@ -1,12 +1,52 @@
 use std::ops::Deref;
+use rand::{Rng};
 
 use crate::{
-    Player, Position, RunState, component::{InBackpack, OtherLevelPosition}, generate::{
+    App, Player, Position, RunState, component::{InBackpack, OtherLevelPosition}, generate::{
         map::{Map, MapOptions}, spawn::{spawn_npc_captain, spawn_npc_merchant, spawn_player, spawn_weighted_item, spawn_weighted_monster}
     }
 };
 use rltk::{Point, RandomNumberGenerator};
 use specs::prelude::*;
+
+/// Performs all of the associated mutations for switching a floor.
+/// 
+/// Functionality is encapsulated here to reduce complexoity in the main run fn.
+/// Since ascending and descending are functionally quite similar, we handle
+/// them both here.
+pub fn switch_floor(app: &mut App, is_descending: bool) -> RunState {
+    let next_index = if is_descending { app.floor_index + 1 } else { app.floor_index - 1};
+    let existing_map = app.dungeon.get_map(next_index);
+    freeze_floor(app.floor_index, &mut app.ecs);
+    let mut map = match existing_map {
+        Some(map) => {
+            thaw_floor(next_index, &mut app.ecs);
+            map
+        }
+        None => {
+            let new_map = generate_floor(rand::rng().random(), next_index as u32, &mut app.ecs);
+            app.dungeon.add_map(&new_map);                                    
+            new_map
+        }
+    };
+
+    // Maybe these should actually just be part of thawing the floor?
+    let (player_x, player_y) = map.idx_xy(map.player_spawn_index.expect("No player spawn index"));
+    map.clear_tile_content();
+    app.ecs.insert(map);
+    app.ecs.insert(RunState::AwaitingInput);
+    app.ecs.insert(Point::new(player_x, player_y));
+    app.floor_index = next_index;
+
+    let player_entity = app.ecs.fetch::<Entity>();
+    let mut positions = app.ecs.write_storage::<Position>();
+    if let Some(position) = positions.get_mut(*player_entity) {
+        position.x = player_x;
+        position.y = player_y;
+    }
+
+    return RunState::AwaitingInput;
+}
 
 /// Given a mutable world, iterate over all entities and remove any that
 /// should not carry over to the next floor.
@@ -49,7 +89,7 @@ pub fn freeze_floor(index: u32, world: &mut World) {
             index: index,
             x: position.x,
             y: position.y,
-        }).expect("Unable to insert OtherLevelPosition");
+        }).expect("Unable to insert OtherLevelPosition during freeze");
         to_delete.push(entity);
     }
 
@@ -65,18 +105,18 @@ pub fn thaw_floor(index: u32, world: &mut World) {
     let player_entity = world.fetch::<Entity>();
 
     let mut to_delete: Vec<Entity> = Vec::new();
-    for (entity, position) in (&entities, &positions).join() {
+    for (entity, other_level_position) in (&entities, &other_level_positions).join() {
         if entity == *player_entity { continue; }
-        other_level_positions.insert(entity, OtherLevelPosition {
-            index: index,
-            x: position.x,
-            y: position.y,
-        }).expect("Unable to insert OtherLevelPosition");
+        if other_level_position.index != index { continue; }
+        positions.insert(entity, Position {
+            x: other_level_position.x,
+            y: other_level_position.y,
+        }).expect("Unable to insert Position during thaw");
         to_delete.push(entity);
     }
 
     for delete in to_delete.iter() {
-        positions.remove(*delete);
+        other_level_positions.remove(*delete);
     }
 }
 
